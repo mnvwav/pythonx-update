@@ -99,7 +99,8 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
 
     /** Accepts TCP connections on port 6000+[display] (DISPLAY=127.0.0.1:[display]) on a background thread. */
     fun listenTcp(display: Int, loopbackOnly: Boolean = true) {
-        val ss = if (loopbackOnly) ServerSocket(6000 + display, 16, InetAddress.getLoopbackAddress()) else ServerSocket(6000 + display)
+        // Not getLoopbackAddress(): on Android that is ::1, and clients connect to 127.0.0.1.
+        val ss = if (loopbackOnly) ServerSocket(6000 + display, 16, InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))) else ServerSocket(6000 + display)
         addListener(ss)
         Thread({
             while (!ss.isClosed) {
