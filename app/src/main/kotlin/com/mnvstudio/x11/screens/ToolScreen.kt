@@ -8,9 +8,12 @@ import androidx.compose.ui.Modifier
 import com.mnvstudio.x11.Prefs
 import com.mnvstudio.x11.ui.Label
 
-/** Routes for Linux tools and other pushed screens. */
+/** Routes for pushed screens other than the display, terminal and diagnostics. */
 @Composable
-fun ToolScreen(route: String, arg: String, prefs: Prefs, navigate: (String) -> Unit, back: () -> Unit) = Unfinished(route)
-
-@Composable
-fun Unfinished(name: String) = Text("$name", color = Label, modifier = Modifier.fillMaxSize().wrapContentSize())
+fun ToolScreen(route: String, arg: String, prefs: Prefs, navigate: (String) -> Unit, back: () -> Unit) {
+    when (route) {
+        "session" -> SessionEditor(arg, prefs, back)
+        "session-history" -> SessionHistoryScreen(arg, back)
+        else -> Text(route, color = Label, modifier = Modifier.fillMaxSize().wrapContentSize())
+    }
+}
