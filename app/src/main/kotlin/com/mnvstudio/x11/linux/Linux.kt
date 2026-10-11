@@ -42,6 +42,8 @@ object Linux {
     var revision by mutableIntStateOf(0); private set
     /** Programs started from the app that are still running. */
     val jobs = mutableStateListOf<Job>()
+    /** Why the last app closed with an error (its last output lines), shown on the display. */
+    var lastFailure by mutableStateOf<String?>(null)
 
     private val main = Handler(Looper.getMainLooper())
     private fun ui(block: () -> Unit) { main.post(block) }
@@ -203,10 +205,19 @@ object Linux {
         }
         val job = jobName?.let { Job(it, p) }
         if (job != null) ui { jobs += job }
+        if (job != null) ui { lastFailure = null }
         Thread {
-            runCatching { p.inputStream.bufferedReader().forEachLine { line -> ui { onOutput(line) } } }
+            val tail = ArrayDeque<String>()
+            runCatching { p.inputStream.bufferedReader().forEachLine { line ->
+                synchronized(tail) { tail.addLast(line); if (tail.size > 8) tail.removeFirst() }
+                ui { onOutput(line) }
+            } }
             val code = runCatching { p.waitFor() }.getOrDefault(-1)
-            if (job != null) AppLog.i("${job.name} exited with code $code")
+            if (job != null) {
+                val out = synchronized(tail) { tail.joinToString("\n") }
+                AppLog.i("${job.name} exited with code $code" + if (out.isNotEmpty()) ": " + out.replace("\n", " | ") else "")
+                if (code != 0) ui { lastFailure = "${job.name} closed (exit $code)" + if (out.isNotEmpty()) "\n$out" else "" }
+            }
             ui { if (job != null) jobs -= job; onExit(code) }
         }.start()
         return p

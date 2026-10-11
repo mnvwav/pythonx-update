@@ -190,6 +190,10 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                 Column(Modifier.align(Alignment.Center).padding(24.dp).clip(ShapeL).background(Color(0xE6161619)).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(if (Linux.jobs.isEmpty()) "No apps open yet" else "Starting ${Linux.jobs.last().name}…", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Linux.lastFailure?.takeIf { Linux.jobs.isEmpty() }?.let {
+                        Text(it, color = Color(0xFFFF8A80), fontSize = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            modifier = Modifier.padding(top = 10.dp).widthIn(max = 520.dp))
+                    }
                     Text("Open an app from Linux apps, or run one with DISPLAY=:${XHolder.display}", color = Label, fontSize = 13.sp,
                         modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
                     PrimaryButton("Linux apps", Modifier.widthIn(min = 200.dp), icon = Icons.Filled.Apps) { onApps() }
