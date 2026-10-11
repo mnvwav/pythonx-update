@@ -116,10 +116,20 @@ class Prefs private constructor(context: Context) {
     /** Show settings meant for power users. */
     var advanced by pref("advanced", false)
 
+    // Dashboard: widget order and the ones turned off.
+    var dashboard by pref("dashboard", DASHBOARD)
+    var dashboardHidden by pref("dashboardHidden", emptySet<String>())
+
     // Library.
     var favorites by pref("favorites", emptySet<String>())
     /** Recently opened app ids, newest first, comma separated. */
     var recents by pref("recents", "")
+
+    /** The session last launched, and whether the display was running when the app was last closed. */
+    var activeSession by pref("activeSession", "")
+    var wasRunning by pref("wasRunning", false)
+    /** Bring the last session back when the app starts again after being closed. */
+    var restoreSession by pref("restoreSession", true)
 
     /** The active Linux profile (a folder under files/profiles). */
     var linuxProfile by pref("linuxProfile", "default")
@@ -196,6 +206,7 @@ class Prefs private constructor(context: Context) {
         const val MODE_TOUCHPAD = "touchpad"
         const val MODE_DIRECT = "direct"
         const val DEFAULT_KEYS = "ESC TAB CTRL ALT SUPER SHIFT LEFT UP DOWN RIGHT HOME END PGUP PGDN DRAG FN KBD"
+        const val DASHBOARD = "status,resources,running,favorites,sessions,tools"
         val RESOLUTIONS = listOf(RES_NATIVE, "1280x720", "1600x900", "1920x1080", "1024x768", RES_CUSTOM)
 
         @Volatile private var instance: Prefs? = null

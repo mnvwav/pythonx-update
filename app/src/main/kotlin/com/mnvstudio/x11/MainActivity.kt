@@ -158,6 +158,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs.of(this)
         if (savedInstanceState == null) handleIntent(intent)
+        // Session restoration: the display was running when the app was last closed (or killed), so bring it back.
+        if (savedInstanceState == null && prefs.onboarded && prefs.restoreSession && prefs.wasRunning && XHolder.server == null) {
+            val s = Sessions.active(this)
+            if (s != null) Sessions.launch(this, s) else XHolder.ensureStarted(this)
+            AppLog.i("Restored the previous session")
+        }
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(dark, dark)
         setContent {

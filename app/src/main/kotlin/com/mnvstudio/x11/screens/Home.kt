@@ -1,5 +1,6 @@
 package com.mnvstudio.x11.screens
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,10 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -26,23 +27,32 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SdStorage
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -50,23 +60,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnvstudio.x11.Launcher
+import com.mnvstudio.x11.Metrics
 import com.mnvstudio.x11.Prefs
+import com.mnvstudio.x11.Sessions
 import com.mnvstudio.x11.XHolder
 import com.mnvstudio.x11.XService
 import com.mnvstudio.x11.linux.Catalog
 import com.mnvstudio.x11.linux.Linux
+import com.mnvstudio.x11.linux.LinuxApp
 import com.mnvstudio.x11.ui.Accent
 import com.mnvstudio.x11.ui.AccentSoft
 import com.mnvstudio.x11.ui.Bad
 import com.mnvstudio.x11.ui.Card
 import com.mnvstudio.x11.ui.CardHigh
 import com.mnvstudio.x11.ui.Faint
+import com.mnvstudio.x11.ui.Gauge
 import com.mnvstudio.x11.ui.HeaderGlow
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
 import com.mnvstudio.x11.ui.Line
 import com.mnvstudio.x11.ui.Live
 import com.mnvstudio.x11.ui.Logo
+import com.mnvstudio.x11.ui.Meter
 import com.mnvstudio.x11.ui.Mono
 import com.mnvstudio.x11.ui.Page
 import com.mnvstudio.x11.ui.Pill
@@ -76,112 +91,230 @@ import com.mnvstudio.x11.ui.SecondaryButton
 import com.mnvstudio.x11.ui.SectionTitle
 import com.mnvstudio.x11.ui.ShapeL
 import com.mnvstudio.x11.ui.ShapeM
+import com.mnvstudio.x11.ui.Sparkline
 import com.mnvstudio.x11.ui.StatusDot
 import com.mnvstudio.x11.ui.Warn
+
+private val WIDGET_NAMES = mapOf(
+    "status" to "Display status", "resources" to "CPU, memory & storage", "running" to "Running apps",
+    "favorites" to "Favorites & recent", "sessions" to "Sessions", "tools" to "Shortcuts",
+)
 
 @Composable
 fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
     val context = LocalContext.current
-    val server = XHolder.server
-    val running = server != null
     LaunchedEffect(Unit) { Linux.check(context) }
-    var batteryOk by remember { mutableStateOf(Launcher.ignoringBatteryOptimizations(context)) }
+    DisposableEffect(Unit) { Metrics.start(context); onDispose { Metrics.stop() } }
+    var editing by rememberSaveable { mutableStateOf(false) }
+    val order = prefs.dashboard.split(',').filter { it in WIDGET_NAMES }.let { o -> o + WIDGET_NAMES.keys.filter { it !in o } }
 
     Box(Modifier.fillMaxSize().background(Page)) {
-        Box(Modifier.fillMaxWidth().height(260.dp).background(HeaderGlow))
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Column(Modifier.widthIn(max = 640.dp)) {
+        Box(Modifier.fillMaxWidth().height(240.dp).background(HeaderGlow))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.widthIn(max = 720.dp).animateContentSize()) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Logo(44.dp)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("X11", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text("Linux apps on your phone", color = Label, fontSize = 12.sp)
                     }
-                    RoundIcon(Icons.AutoMirrored.Filled.MenuBook, "Help") { navigate("help") }
+                    RoundIcon(Icons.Filled.Dashboard, if (editing) "Done customizing" else "Customize dashboard", tint = if (editing) Accent else Ink) { editing = !editing }
                     Spacer(Modifier.width(8.dp))
-                    RoundIcon(Icons.Filled.Settings, "Settings") { navigate("settings") }
+                    RoundIcon(Icons.AutoMirrored.Filled.MenuBook, "Help") { navigate("help") }
                 }
+                XHolder.error?.let { Banner(Icons.Filled.ErrorOutline, it, Bad) { navigate("diagnostics") } }
+                if (Metrics.lowMemory) Banner(Icons.Filled.Memory, "The phone is low on memory. Close apps you don't need; Android may stop X11.", Warn) { navigate("processes") }
+                if (Metrics.storageFreeMb in 1 until 500) Banner(Icons.Filled.SdStorage, "Only ${Metrics.storageFreeMb} MB of storage left. Clean up Linux to free space.", Warn) { navigate("maintenance") }
 
-                // Server card.
-                Column(Modifier.fillMaxWidth().padding(top = 6.dp).clip(ShapeL).background(Card).border(1.dp, Line, ShapeL).padding(22.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        StatusDot(running)
-                        Text(if (running) "Display is on" else "Display is off", color = Ink, fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 6.dp).weight(1f))
-                        if (running) Pill(if (XHolder.clients == 1) "1 app" else "${XHolder.clients} apps", Live)
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Row {
-                        Stat("Display", ":${if (running) XHolder.display else prefs.display}", Modifier.weight(1f))
-                        val size = server?.let { "${it.width}×${it.height}" } ?: prefs.screenSize().let { "${it.first}×${it.second}" }
-                        Stat("Resolution", size, Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(18.dp))
-                    if (running) {
-                        PrimaryButton("Open display", Modifier.fillMaxWidth(), icon = Icons.Filled.Cast) { navigate("display") }
-                        Spacer(Modifier.height(10.dp))
-                        SecondaryButton("Stop", Modifier.fillMaxWidth(), icon = Icons.Filled.Stop, color = Bad) { XService.stop(context) }
-                    } else {
-                        PrimaryButton("Start display", Modifier.fillMaxWidth(), icon = Icons.Filled.PlayArrow) { XHolder.ensureStarted(context) }
+                if (editing) {
+                    SectionTitle("Customize dashboard")
+                    order.forEachIndexed { i, id -> EditRow(prefs, order, i, id) }
+                    Text("Done", color = Accent, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(12.dp).clickable { editing = false })
+                } else order.filter { it !in prefs.dashboardHidden }.forEach { id ->
+                    when (id) {
+                        "status" -> StatusWidget(prefs, navigate)
+                        "resources" -> ResourcesWidget(navigate)
+                        "running" -> RunningWidget(navigate)
+                        "favorites" -> FavoritesWidget(prefs, navigate)
+                        "sessions" -> SessionsWidget(prefs, navigate)
+                        "tools" -> ToolsWidget(navigate)
                     }
                 }
-
-                XHolder.error?.let { msg -> Banner(Icons.Filled.ErrorOutline, msg, Bad) }
-                if (!batteryOk) Banner(Icons.Filled.BatteryAlert, "Battery saving may stop X11 in the background. Tap to allow it to keep running.", Warn) {
-                    Launcher.requestBatteryExemption(context); batteryOk = true
-                }
-
-                // Running Linux apps.
-                if (Linux.jobs.isNotEmpty()) {
-                    SectionTitle("Running")
-                    Column(Modifier.fillMaxWidth().clip(ShapeL).background(Card).border(1.dp, Line, ShapeL).padding(vertical = 6.dp)) {
-                        Linux.jobs.forEach { job ->
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                StatusDot(true, 7.dp)
-                                Text(job.name, color = Ink, fontSize = 15.sp, modifier = Modifier.padding(start = 6.dp).weight(1f))
-                                RoundIcon(Icons.Filled.Close, "Stop ${job.name}", tint = Label) { Linux.stop(job) }
-                            }
-                        }
-                    }
-                }
-
-                // Quick launch: installed apps.
-                val installed = remember(Linux.revision, Linux.state) {
-                    if (Linux.state == Linux.State.READY) Catalog.apps.filter { Linux.isInstalled(context, it) } else emptyList()
-                }
-                SectionTitle("Apps")
-                if (installed.isNotEmpty()) {
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        installed.forEach { app ->
-                            Column(
-                                Modifier.width(96.dp).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)
-                                    .clickable(role = Role.Button) { if (Launcher.open(context, app)) navigate("display") }.padding(vertical = 14.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Box(Modifier.size(40.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) {
-                                    Icon(appIcon(app.id), null, tint = Accent, modifier = Modifier.size(22.dp))
-                                }
-                                Text(app.name, color = Ink, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp), maxLines = 1)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                }
-                NavCard(Icons.Filled.Apps, "Linux apps", if (Linux.state == Linux.State.READY) "Install, open and manage apps" else "Set up the built-in Linux in one tap") { navigate("apps") }
-                Spacer(Modifier.height(10.dp))
-                NavCard(Icons.Filled.Terminal, "Console", "Run commands in Linux") { navigate("console") }
-                Spacer(Modifier.height(10.dp))
-                NavCard(Icons.Filled.HealthAndSafety, "Diagnostics", "Test and repair, view logs") { navigate("diagnostics") }
-
-                SectionTitle("From Termux")
-                Text("Already use Termux? Point apps at this display: DISPLAY=:${prefs.display}. See the guide for the mnvx11 command.",
-                    color = Faint, fontSize = 12.sp, fontFamily = Mono, modifier = Modifier.padding(horizontal = 4.dp))
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(28.dp))
             }
         }
+    }
+}
+
+/** One widget in edit mode: move it up or down, or hide it. */
+@Composable
+private fun EditRow(prefs: Prefs, order: List<String>, i: Int, id: String) {
+    val hidden = id in prefs.dashboardHidden
+    fun move(d: Int) {
+        val j = i + d
+        if (j !in order.indices) return
+        prefs.dashboard = order.toMutableList().apply { add(j, removeAt(i)) }.joinToString(",")
+    }
+    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM).padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(WIDGET_NAMES[id] ?: id, color = if (hidden) Faint else Ink, fontSize = 15.sp, modifier = Modifier.weight(1f))
+        RoundIcon(Icons.Filled.KeyboardArrowUp, "Move ${WIDGET_NAMES[id]} up", tint = if (i > 0) Ink else Faint) { move(-1) }
+        Spacer(Modifier.width(6.dp))
+        RoundIcon(Icons.Filled.KeyboardArrowDown, "Move ${WIDGET_NAMES[id]} down", tint = if (i < order.lastIndex) Ink else Faint) { move(1) }
+        Spacer(Modifier.width(6.dp))
+        RoundIcon(if (hidden) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, if (hidden) "Show" else "Hide", tint = if (hidden) Faint else Accent) {
+            prefs.dashboardHidden = if (hidden) prefs.dashboardHidden - id else prefs.dashboardHidden + id
+        }
+    }
+}
+
+@Composable
+private fun WidgetCard(content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp).clip(ShapeL).background(Card).border(1.dp, Line, ShapeL).padding(20.dp)) { content() }
+}
+
+@Composable
+private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
+    val context = LocalContext.current
+    val server = XHolder.server
+    val running = server != null
+    WidgetCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusDot(running)
+            Text(if (running) "Display is on" else "Display is off", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 6.dp).weight(1f))
+            if (running) Pill(if (XHolder.clients == 1) "1 app" else "${XHolder.clients} apps", Live)
+        }
+        Text(Sessions.active(context)?.let { "Session: ${it.name}" } ?: "", color = Label, fontSize = 12.sp)
+        Spacer(Modifier.height(12.dp))
+        Row {
+            Stat("Display", ":${if (running) XHolder.display else prefs.display}", Modifier.weight(1f))
+            Stat("Resolution", server?.let { "${it.width}×${it.height}" } ?: prefs.screenSize().let { "${it.first}×${it.second}" }, Modifier.weight(1f))
+            Stat("DPI", "${prefs.dpi()}", Modifier.weight(0.6f))
+        }
+        Spacer(Modifier.height(16.dp))
+        if (running) {
+            PrimaryButton("Open display", Modifier.fillMaxWidth(), icon = Icons.Filled.Cast) { navigate("display") }
+            Spacer(Modifier.height(10.dp))
+            SecondaryButton("Stop", Modifier.fillMaxWidth(), icon = Icons.Filled.Stop, color = Bad) { XService.stop(context) }
+        } else PrimaryButton("Start display", Modifier.fillMaxWidth(), icon = Icons.Filled.PlayArrow) { XHolder.ensureStarted(context) }
+        var batteryOk by remember { mutableStateOf(Launcher.ignoringBatteryOptimizations(context)) }
+        if (!batteryOk) Banner(Icons.Filled.BatteryAlert, "Battery saving may stop X11 in the background. Tap to allow it to keep running.", Warn) {
+            Launcher.requestBatteryExemption(context); batteryOk = true
+        }
+    }
+}
+
+@Composable
+private fun ResourcesWidget(navigate: (String) -> Unit) {
+    val s = Metrics.latest
+    val hist = Metrics.history
+    WidgetCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Resources", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Processes", color = Accent, fontSize = 13.sp, modifier = Modifier.clickable { navigate("processes") })
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Gauge(s?.cpu ?: 0f, "CPU (X11)", Accent)
+            Gauge(s?.ramUsedPct ?: 0f, "Phone RAM", if ((s?.ramUsedPct ?: 0f) > 85) Warn else Live)
+            val used = if (Metrics.storageTotalMb > 0) (1f - Metrics.storageFreeMb.toFloat() / Metrics.storageTotalMb) * 100f else 0f
+            Gauge(used, "Storage", if (Metrics.storageFreeMb in 1 until 500) Bad else Label)
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("CPU over the last 3 minutes", color = Faint, fontSize = 11.sp)
+        Sparkline(hist.map { it.cpu }, Accent)
+        Text("Phone memory in use", color = Faint, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
+        Sparkline(hist.map { it.ramUsedPct }, Live)
+        Spacer(Modifier.height(8.dp))
+        Text("X11 + Linux use ${s?.appRssMb ?: 0} MB · ${Metrics.ramAvailMb} of ${Metrics.ramTotalMb} MB RAM free · " +
+            "%.1f GB storage free".format(Metrics.storageFreeMb / 1024f), color = Label, fontSize = 12.sp, fontFamily = Mono)
+    }
+}
+
+@Composable
+private fun RunningWidget(navigate: (String) -> Unit) {
+    if (Linux.jobs.isEmpty()) return
+    WidgetCard {
+        Text("Running", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Linux.jobs.forEach { job ->
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                StatusDot(true, 7.dp)
+                Text(job.name, color = Ink, fontSize = 15.sp, modifier = Modifier.padding(start = 6.dp).weight(1f))
+                RoundIcon(Icons.Filled.Close, "Stop ${job.name}", tint = Label) { Linux.stop(job) }
+            }
+        }
+        Text("All processes", color = Accent, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp).clickable { navigate("processes") })
+    }
+}
+
+@Composable
+private fun FavoritesWidget(prefs: Prefs, navigate: (String) -> Unit) {
+    val context = LocalContext.current
+    val apps = remember(Linux.revision, Linux.state, prefs.favorites, prefs.recents) {
+        if (Linux.state != Linux.State.READY) emptyList()
+        else (prefs.favorites.mapNotNull { Catalog.byId(it) } + prefs.recentIds().mapNotNull { Catalog.byId(it) } +
+            Catalog.apps.filter { Linux.isInstalled(context, it) }).distinct().filter { Linux.isInstalled(context, it) }.take(10)
+    }
+    WidgetCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Apps", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Library", color = Accent, fontSize = 13.sp, modifier = Modifier.clickable { navigate("apps") })
+        }
+        Spacer(Modifier.height(12.dp))
+        if (apps.isEmpty()) {
+            Text(if (Linux.state == Linux.State.READY) "Install apps from the library to launch them here." else "Set up Linux to install apps.",
+                color = Label, fontSize = 13.sp)
+        } else Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            apps.forEach { app -> AppChip(prefs, app) { if (Launcher.open(context, app)) navigate("display") } }
+        }
+    }
+}
+
+@Composable
+private fun AppChip(prefs: Prefs, app: LinuxApp, onClick: () -> Unit) {
+    Column(Modifier.width(88.dp).clip(ShapeM).background(CardHigh).clickable(role = Role.Button, onClick = onClick).padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(40.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) {
+            Icon(appIcon(app.id), null, tint = Accent, modifier = Modifier.size(22.dp))
+        }
+        Text(app.name, color = Ink, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
+        if (app.id in prefs.favorites) Text("★", color = Warn, fontSize = 10.sp)
+    }
+}
+
+@Composable
+private fun SessionsWidget(prefs: Prefs, navigate: (String) -> Unit) {
+    val context = LocalContext.current
+    val list = Sessions.all(context)
+    if (list.isEmpty()) return
+    WidgetCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Sessions", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Manage", color = Accent, fontSize = 13.sp, modifier = Modifier.clickable { navigate("sessions") })
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            list.forEach { s ->
+                val active = Sessions.active(context)?.id == s.id
+                Column(Modifier.width(150.dp).clip(ShapeM).background(if (active) AccentSoft else CardHigh)
+                    .clickable { if (Sessions.launch(context, s)) navigate("display") }.padding(12.dp)) {
+                    Text(s.name, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(s.summary(), color = Label, fontSize = 11.sp, maxLines = 2)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolsWidget(navigate: (String) -> Unit) {
+    Column(Modifier.padding(top = 12.dp)) {
+        NavCard(Icons.Filled.Apps, "App library", "Install and open Linux apps") { navigate("apps") }
+        Spacer(Modifier.height(10.dp))
+        NavCard(Icons.Filled.Terminal, "Terminal", "Run commands in Linux") { navigate("console") }
+        Spacer(Modifier.height(10.dp))
+        NavCard(Icons.Filled.HealthAndSafety, "Diagnostics", "Test, repair and logs") { navigate("diagnostics") }
     }
 }
 
@@ -189,12 +322,12 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
 private fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
     Column(modifier) {
         Text(label, color = Label, fontSize = 12.sp)
-        Text(value, color = Ink, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, fontFamily = Mono)
+        Text(value, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, fontFamily = Mono)
     }
 }
 
 @Composable
-private fun Banner(icon: ImageVector, text: String, color: androidx.compose.ui.graphics.Color, onClick: (() -> Unit)? = null) {
+fun Banner(icon: ImageVector, text: String, color: Color, onClick: (() -> Unit)? = null) {
     Row(
         Modifier.fillMaxWidth().padding(top = 12.dp).clip(ShapeM).background(color.copy(alpha = 0.12f))
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(14.dp),
@@ -219,3 +352,4 @@ fun NavCard(icon: ImageVector, title: String, body: String, onClick: () -> Unit)
         Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Faint)
     }
 }
+

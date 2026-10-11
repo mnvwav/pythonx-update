@@ -144,7 +144,7 @@ object Linux {
      * main thread. Programs see DISPLAY=127.0.0.1:[display], so X11 apps appear on this app's server.
      * When [jobName] is given the process is listed in [jobs] until it exits.
      */
-    fun run(context: Context, command: String, display: Int, jobName: String? = null,
+    fun run(context: Context, command: String, display: Int, jobName: String? = null, env: Map<String, String> = emptyMap(),
             onOutput: (String) -> Unit = {}, onExit: (Int) -> Unit = {}): Process? {
         val app = context.applicationContext
         val lib = app.applicationInfo.nativeLibraryDir
@@ -173,6 +173,9 @@ object Linux {
             put("TMPDIR", "/tmp")
             // Loopback TCP is the most reliable route from inside proot (the abstract socket needs libxcb support).
             put("DISPLAY", "127.0.0.1:$display")
+            // Profile-wide variables (Environment screen), then the caller's (session or app).
+            putAll(userEnv(app))
+            putAll(env)
         }
         val p = try { pb.start() } catch (e: Exception) {
             AppLog.e("Couldn't start Linux", e)
@@ -201,8 +204,19 @@ object Linux {
         run(context, app.command, display, jobName = app.name, onOutput = log) { code -> if (code != 0) log("${app.name} exited ($code)") }
     }
 
-    fun stop(job: Job) { job.process.destroy() }
-    fun stopAll() { jobs.toList().forEach { it.process.destroy() } }
+    fun stop(job: Job) { com.mnvstudio.x11.Sessions.userStopped(job); job.process.destroy() }
+    fun stopAll() { jobs.toList().forEach { stop(it) } }
+
+    /** Variables set on the Environment screen, stored in the profile as /etc/x11-env (NAME=value lines). */
+    fun userEnv(context: Context): Map<String, String> = runCatching {
+        File(rootfs(context), "etc/x11-env").readLines().mapNotNull { l ->
+            val i = l.indexOf('='); if (i <= 0 || l.startsWith("#")) null else l.substring(0, i).trim() to l.substring(i + 1)
+        }.toMap()
+    }.getOrDefault(emptyMap())
+
+    fun saveUserEnv(context: Context, vars: Map<String, String>) {
+        File(rootfs(context), "etc/x11-env").writeText(vars.entries.joinToString("\n", postfix = "\n") { "${it.key}=${it.value}" })
+    }
     fun runningCount() = jobs.size
 
     // ---------------------------------------------------------------- packages

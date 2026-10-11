@@ -96,6 +96,7 @@ object XHolder {
     }
 
     private fun updateClients(n: Int) {
+        if (clients == 0 && n > 0) appContext?.let { Sessions.firstClientConnected(it) }
         clients = n
         if (n == 0) idleSince = SystemClock.elapsedRealtime()
         onClientsChanged?.invoke(n)
