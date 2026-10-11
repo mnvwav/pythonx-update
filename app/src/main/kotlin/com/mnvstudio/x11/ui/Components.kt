@@ -84,27 +84,25 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 // ---------------------------------------------------------------- brand
 
 /**
- * The X11 mark: a screwdriver and a hammer crossed into an X, in white. Geometry is in a unit square so the
- * launcher icon (res/drawable/ic_launcher_foreground.xml) matches it exactly.
+ * The X11 mark: a window (thick title bar) with an X inside. Geometry is in a unit square so the launcher icons
+ * (res/drawable/ic_launcher_foreground.xml and friends) match it exactly. [split] (0..1) pushes the four X arms
+ * outward for the opening animation, and [frame] is the window's opacity.
  */
-fun DrawScope.drawToolMark(color: Color) {
+fun DrawScope.drawToolMark(color: Color, split: Float = 0f, frame: Float = 1f) {
     val s = size.minDimension
     val c = Offset(size.width / 2, size.height / 2)
-    fun bar(x0: Float, x1: Float, w: Float, r: Float) =
-        drawRoundRect(color, Offset(c.x + x0 * s, c.y - w * s / 2), Size((x1 - x0) * s, w * s), CornerRadius(r * s))
-    // Screwdriver: blade top-left, handle bottom-right.
-    rotate(45f, c) {
-        bar(-0.40f, -0.29f, 0.11f, 0.015f)   // flat tip
-        bar(-0.30f, 0.06f, 0.06f, 0.012f)    // shaft
-        bar(0.04f, 0.09f, 0.12f, 0.012f)      // ferrule
-        bar(0.08f, 0.40f, 0.16f, 0.055f)    // handle
+    if (frame > 0f) {
+        val path = androidx.compose.ui.graphics.Path().apply {
+            fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(c.x - 0.42f * s, c.y - 0.34f * s, c.x + 0.42f * s, c.y + 0.34f * s, CornerRadius(0.09f * s)))
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(c.x - 0.36f * s, c.y - 0.19f * s, c.x + 0.36f * s, c.y + 0.28f * s, CornerRadius(0.04f * s)))
+        }
+        drawPath(path, color.copy(alpha = color.alpha * frame))
     }
-    // Hammer: head top-right, handle bottom-left.
-    rotate(-45f, c) {
-        bar(-0.40f, -0.06f, 0.16f, 0.055f)   // handle
-        bar(-0.08f, 0.22f, 0.07f, 0.012f)    // neck
-        drawRoundRect(color, Offset(c.x + 0.21f * s, c.y - 0.17f * s), Size(0.13f * s, 0.34f * s), CornerRadius(0.025f * s)) // head
-        drawRoundRect(color, Offset(c.x + 0.24f * s, c.y - 0.27f * s), Size(0.07f * s, 0.11f * s), CornerRadius(0.025f * s)) // claw
+    // The X: four arms from its centre, so each can fly out on its own.
+    val x = Offset(c.x, c.y + 0.045f * s)
+    for (angle in listOf(45f, 135f, 225f, 315f)) rotate(angle, x) {
+        drawRoundRect(color, Offset(x.x + (0.0f + split * 0.5f) * s, x.y - 0.0475f * s), Size(0.22f * s, 0.095f * s), CornerRadius(0.0475f * s))
     }
 }
 

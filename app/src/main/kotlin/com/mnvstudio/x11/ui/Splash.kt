@@ -34,8 +34,8 @@ import kotlinx.coroutines.delay
 private val Ease = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 /**
- * Opening animation: the crossed screwdriver and hammer (the logo) slide apart along their own axes,
- * "X11" rises out of the gap between them, then everything fades into the app. About 1.6 s.
+ * Opening animation: the X in the logo splits into four arms that fly apart while the window fades,
+ * "X11" rises in their place, then everything fades into the app. About 1.6 s.
  */
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
@@ -61,12 +61,8 @@ fun SplashScreen(onFinished: () -> Unit) {
             val s = 0.85f + 0.15f * appear.value
             scaleX = s; scaleY = s; alpha = appear.value
         }) {
-            // Each tool travels outward along its own diagonal, so the X opens like scissors.
-            val d = size.minDimension * 0.34f * split.value
-            translate(-d * 0.7071f, -d * 0.7071f) { screwdriverTip(this, Color.White) }
-            translate(d * 0.7071f, d * 0.7071f) { screwdriverHandle(this, Color.White) }
-            translate(d * 0.7071f, -d * 0.7071f) { hammerHead(this, Color.White) }
-            translate(-d * 0.7071f, d * 0.7071f) { hammerHandle(this, Color.White) }
+            // The X's four arms fly out of the window, which fades, leaving room for the name.
+            drawToolMark(Color.White, split = split.value, frame = 1f - split.value)
         }
         Text(
             "X11", color = Color.White, fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 44.sp, letterSpacing = 2.sp,
@@ -80,33 +76,3 @@ fun SplashScreen(onFinished: () -> Unit) {
     }
 }
 
-// The logo split into its four halves (same geometry as drawToolMark), so each can move on its own.
-
-private fun DrawScope.bar(c: Offset, s: Float, x0: Float, x1: Float, w: Float, r: Float, color: Color) =
-    drawRoundRect(color, Offset(c.x + x0 * s, c.y - w * s / 2), Size((x1 - x0) * s, w * s), CornerRadius(r * s))
-
-private fun DrawScope.center() = Offset(size.width / 2, size.height / 2)
-
-private fun screwdriverTip(d: DrawScope, color: Color) = with(d) {
-    val c = center(); val s = size.minDimension
-    rotate(45f, c) { bar(c, s, -0.40f, -0.29f, 0.11f, 0.015f, color); bar(c, s, -0.30f, 0.06f, 0.06f, 0.012f, color) }
-}
-
-private fun screwdriverHandle(d: DrawScope, color: Color) = with(d) {
-    val c = center(); val s = size.minDimension
-    rotate(45f, c) { bar(c, s, 0.04f, 0.09f, 0.12f, 0.012f, color); bar(c, s, 0.08f, 0.40f, 0.16f, 0.055f, color) }
-}
-
-private fun hammerHead(d: DrawScope, color: Color) = with(d) {
-    val c = center(); val s = size.minDimension
-    rotate(-45f, c) {
-        bar(c, s, -0.08f, 0.22f, 0.07f, 0.012f, color)
-        drawRoundRect(color, Offset(c.x + 0.21f * s, c.y - 0.17f * s), Size(0.13f * s, 0.34f * s), CornerRadius(0.025f * s))
-        drawRoundRect(color, Offset(c.x + 0.24f * s, c.y - 0.27f * s), Size(0.07f * s, 0.11f * s), CornerRadius(0.025f * s))
-    }
-}
-
-private fun hammerHandle(d: DrawScope, color: Color) = with(d) {
-    val c = center(); val s = size.minDimension
-    rotate(-45f, c) { bar(c, s, -0.40f, -0.06f, 0.16f, 0.055f, color) }
-}
