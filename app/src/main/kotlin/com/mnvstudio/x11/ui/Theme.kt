@@ -16,6 +16,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -24,12 +25,12 @@ import androidx.compose.ui.unit.dp
 import com.mnvstudio.x11.R
 
 /*
- * Design language: "the workbench". The logo is a white tool mark on graphite, so the app is too:
- *  - Graphite surfaces in three steps (page, card, raised), hairline borders instead of shadows.
- *  - White for primary text and the brand mark; one accent (signal blue) for actions and selection.
- *  - Mint marks live things (running server, connected apps); coral marks problems.
+ * Design language: "black & gold", from the logo (a gold X11 wordmark on a black tile).
+ *  - Near-black surfaces in three steps (page, card, raised) with warm hairline borders instead of shadows.
+ *  - Warm white text; gold for actions, selection and the brand; gold-on-black tiles for icons.
+ *  - Green marks live things (running server, connected apps); coral marks problems, orange warnings.
  *  - Shapes: 12 (chips, keys) · 16 (rows, inputs) · 24 (cards) · pills for buttons.
- * Material You swaps the accent for wallpaper colors; high contrast brightens text and borders.
+ * Other accents and Material You stay available in Settings → Look.
  */
 
 @Immutable
@@ -41,30 +42,30 @@ data class Palette(
 )
 
 private val Graphite = Palette(
-    page = Color(0xFF0E0E10), card = Color(0xFF161619), raised = Color(0xFF1E1E22), line = Color(0xFF2A2A30),
-    ink = Color(0xFFF3F3F5), label = Color(0xFFA4A4AD), faint = Color(0xFF6C6C76),
-    accent = Color(0xFF5B8CFF), onAccent = Color.White, accentSoft = Color(0xFF1A2440),
-    live = Color(0xFF3DDC97), bad = Color(0xFFFF6B6B), warn = Color(0xFFFFB547), code = Color(0xFF09090B),
+    page = Color(0xFF0A0A0A), card = Color(0xFF141413), raised = Color(0xFF1D1C1A), line = Color(0xFF2B2924),
+    ink = Color(0xFFF6F3EA), label = Color(0xFFB3AD9F), faint = Color(0xFF7A756B),
+    accent = Color(0xFFF7C948), onAccent = Color(0xFF111111), accentSoft = Color(0xFF2A2412),
+    live = Color(0xFF5FD88A), bad = Color(0xFFFF6B6B), warn = Color(0xFFFF9F43), code = Color(0xFF050505),
 )
 
-private val Amoled = Graphite.copy(page = Color.Black, card = Color(0xFF0A0A0B), raised = Color(0xFF141416), line = Color(0xFF222226), code = Color.Black)
+private val Amoled = Graphite.copy(page = Color.Black, card = Color(0xFF0B0B0A), raised = Color(0xFF151513), line = Color(0xFF24221E), code = Color.Black)
 
 private val Paper = Palette(
-    page = Color(0xFFF6F6F8), card = Color.White, raised = Color(0xFFEDEDF1), line = Color(0xFFDCDCE2),
-    ink = Color(0xFF111114), label = Color(0xFF55555F), faint = Color(0xFF8A8A94),
-    accent = Color(0xFF2F6BFF), onAccent = Color.White, accentSoft = Color(0xFFE3EBFF),
-    live = Color(0xFF13A86B), bad = Color(0xFFD93A3A), warn = Color(0xFFB7791F), code = Color(0xFF111114),
+    page = Color(0xFFFBF8F1), card = Color.White, raised = Color(0xFFF2EDE1), line = Color(0xFFE3DCCB),
+    ink = Color(0xFF16140F), label = Color(0xFF5E584B), faint = Color(0xFF948D7E),
+    accent = Color(0xFFB8860B), onAccent = Color.White, accentSoft = Color(0xFFF6EBCB),
+    live = Color(0xFF13A86B), bad = Color(0xFFD93A3A), warn = Color(0xFFC2620C), code = Color(0xFF16140F),
 )
 
 /** Accent choices in Settings, with the soft tint used behind selected items (dark, light). */
 val ACCENTS = mapOf(
-    "Blue" to Color(0xFF5B8CFF), "Violet" to Color(0xFF9B7BFF), "Teal" to Color(0xFF2EC4B6),
+    "Gold" to Color(0xFFF7C948), "Blue" to Color(0xFF5B8CFF), "Violet" to Color(0xFF9B7BFF), "Teal" to Color(0xFF2EC4B6),
     "Orange" to Color(0xFFFF8A3D), "Pink" to Color(0xFFFF5C9A), "Lime" to Color(0xFF9BD12E),
 )
 
 private val HighContrast = Graphite.copy(
     page = Color.Black, card = Color(0xFF0C0C0C), raised = Color(0xFF161616), line = Color(0xFF8A8A8A),
-    ink = Color.White, label = Color(0xFFE2E2E2), faint = Color(0xFFBDBDBD), accent = Color(0xFF8AB0FF), accentSoft = Color(0xFF1F2B4D),
+    ink = Color.White, label = Color(0xFFE2E2E2), faint = Color(0xFFBDBDBD), accent = Color(0xFFFFD866), onAccent = Color.Black, accentSoft = Color(0xFF3A3010),
 )
 
 private fun Palette.withDynamic(s: ColorScheme) = copy(accent = s.primary, onAccent = s.onPrimary, accentSoft = s.primaryContainer)
@@ -121,12 +122,17 @@ private val AppTypography = Typography().run {
 
 /** [mode] is "dark", "light", "amoled" or "system"; [accent] a key of [ACCENTS]. */
 @Composable
-fun AppTheme(mode: String = "dark", accent: String = "Blue", dynamic: Boolean = false, highContrast: Boolean = false, content: @Composable () -> Unit) {
+fun AppTheme(mode: String = "dark", accent: String = "Gold", dynamic: Boolean = false, highContrast: Boolean = false, content: @Composable () -> Unit) {
     val context = LocalContext.current
     val light = mode == "light" || (mode == "system" && !androidx.compose.foundation.isSystemInDarkTheme())
     var p = when { highContrast -> HighContrast; light -> Paper; mode == "amoled" -> Amoled; else -> Graphite }
     val a = ACCENTS[accent]
-    if (a != null && !highContrast) p = p.copy(accent = if (light) a.darker() else a, accentSoft = a.copy(alpha = if (light) 0.14f else 0.18f).compositeOver(p.page))
+    if (a != null && !highContrast) {
+        val acc = if (light) a.darker().let { if (accent == "Gold") Color(0xFFB8860B) else it } else a
+        // Text on the accent: dark on bright accents (gold, lime), white on deep ones.
+        p = p.copy(accent = acc, onAccent = if (acc.luminance() > 0.45f) Color(0xFF111111) else Color.White,
+            accentSoft = a.copy(alpha = if (light) 0.16f else 0.16f).compositeOver(p.page))
+    }
     if (dynamic && Build.VERSION.SDK_INT >= 31 && !highContrast) {
         p = p.withDynamic(if (light) androidx.compose.material3.dynamicLightColorScheme(context) else dynamicDarkColorScheme(context))
     }

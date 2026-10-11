@@ -56,7 +56,7 @@ fun SplashScreen(onFinished: () -> Unit) {
         exit.animateTo(1f, tween(260))
         onFinished()
     }
-    Box(Modifier.fillMaxSize().background(Color(0xFF0E0E10)).alpha(1f - exit.value), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color.Black).alpha(1f - exit.value), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(220.dp).graphicsLayer {
             val s = 0.85f + 0.15f * appear.value
             scaleX = s; scaleY = s; alpha = appear.value

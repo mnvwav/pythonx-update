@@ -286,7 +286,7 @@ fun SettingsScreen(prefs: Prefs, navigate: (String) -> Unit, onReplayOnboarding:
 @Composable
 private fun GradientTile(icon: androidx.compose.ui.graphics.vector.ImageVector, colors: String, size: androidx.compose.ui.unit.Dp) {
     Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(androidx.compose.ui.graphics.Brush.linearGradient(categoryGradient(colors))),
-        contentAlignment = Alignment.Center) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(size * 0.52f)) }
+        contentAlignment = Alignment.Center) { Icon(icon, null, tint = com.mnvstudio.x11.ui.TileIcon, modifier = Modifier.size(size * 0.52f)) }
 }
 
 @Composable

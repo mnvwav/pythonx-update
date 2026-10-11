@@ -86,10 +86,10 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 
 // ---------------------------------------------------------------- brand
 
-/** The accent as a diagonal gradient toward violet, like the logo: primary buttons and hero cards. */
+/** The accent as a soft metallic gradient (gold catches light at the top-left): primary buttons and hero cards. */
 @Composable
 fun accentGradient(): androidx.compose.ui.graphics.Brush =
-    androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, androidx.compose.ui.graphics.lerp(Accent, Color(0xFF7C4DFF), 0.65f)))
+    androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.lerp(Accent, Color.White, 0.12f), androidx.compose.ui.graphics.lerp(Accent, Color(0xFF8A5A00), 0.35f)))
 
 /** Brand colors: gold wordmark on a black tile. */
 val BrandGradient = listOf(Color(0xFF1A1A1A), Color(0xFF000000))

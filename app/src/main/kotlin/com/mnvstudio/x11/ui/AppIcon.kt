@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,18 +32,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Per-category gradients for app tiles, in the logo's blue-violet family. */
+/** Icon tiles are black like the logo, with a faint warm tint per category so groups still read apart. */
 private val CategoryGradients = mapOf(
-    "Desktops" to listOf(Color(0xFF5B8CFF), Color(0xFF7C4DFF)),
-    "Tools" to listOf(Color(0xFF2EC4B6), Color(0xFF3A86FF)),
-    "Office" to listOf(Color(0xFFFF9F1C), Color(0xFFFF5D73)),
-    "Developer" to listOf(Color(0xFF8338EC), Color(0xFFFF006E)),
-    "Graphics" to listOf(Color(0xFFFF5D8F), Color(0xFFFFB347)),
-    "Internet" to listOf(Color(0xFF00B4D8), Color(0xFF4361EE)),
-    "Classic" to listOf(Color(0xFF6C757D), Color(0xFF495057)),
-)
+    "Desktops" to Color(0xFF2A2412), "Tools" to Color(0xFF1C2320), "Office" to Color(0xFF2A1E14), "Developer" to Color(0xFF221A26),
+    "Graphics" to Color(0xFF2A1A1C), "Internet" to Color(0xFF16202A), "Classic" to Color(0xFF1E1E1E),
+).mapValues { (_, c) -> listOf(c, Color(0xFF070707)) }
 
-fun categoryGradient(category: String) = CategoryGradients[category] ?: listOf(Color(0xFF5B8CFF), Color(0xFF7C4DFF))
+/** Icons drawn on those tiles. */
+val TileIcon = Color(0xFFF7C948)
+
+fun categoryGradient(category: String) = CategoryGradients[category] ?: listOf(Color(0xFF1E1E1E), Color(0xFF070707))
 
 /**
  * The app's own icon once it's installed (PNG from its .desktop entry inside Alpine), otherwise a gradient tile
@@ -62,8 +61,8 @@ fun AppIcon(app: LinuxApp, size: Dp = 42.dp) {
             Image(bmp, app.name, Modifier.size(size * 0.78f))
         }
     } else {
-        Box(Modifier.size(size).clip(shape).background(Brush.linearGradient(categoryGradient(app.category))), contentAlignment = Alignment.Center) {
-            Icon(appIcon(app.id), null, tint = Color.White, modifier = Modifier.size(size * 0.52f))
+        Box(Modifier.size(size).clip(shape).background(Brush.linearGradient(categoryGradient(app.category))).border(1.dp, TileIcon.copy(alpha = 0.18f), shape), contentAlignment = Alignment.Center) {
+            Icon(appIcon(app.id), null, tint = TileIcon, modifier = Modifier.size(size * 0.52f))
         }
     }
 }

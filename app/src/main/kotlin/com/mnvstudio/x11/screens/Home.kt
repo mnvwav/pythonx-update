@@ -183,10 +183,11 @@ private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
     val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
     val glow by pulse.animateFloat(0.35f, 1f, androidx.compose.animation.core.infiniteRepeatable(
         androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse), label = "glow")
-    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(ShapeL).background(com.mnvstudio.x11.ui.accentGradient()).padding(20.dp)) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1F1B10), Color(0xFF050505))))
+        .border(1.dp, com.mnvstudio.x11.ui.BrandGold.copy(alpha = 0.35f), ShapeL).padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(10.dp).clip(CircleShape).background(if (running) Color.White.copy(alpha = glow) else Color.White.copy(alpha = 0.4f)))
-            Text(if (running) "Display is on" else "Display is off", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+            Box(Modifier.size(10.dp).clip(CircleShape).background(if (running) Live.copy(alpha = glow) else Color.White.copy(alpha = 0.35f)))
+            Text(if (running) "Display is on" else "Display is off", color = com.mnvstudio.x11.ui.BrandGold, fontSize = 20.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 10.dp).weight(1f))
             if (running) Text(if (XHolder.clients == 1) "1 app" else "${XHolder.clients} apps", color = Color.White, fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.2f)).padding(horizontal = 10.dp, vertical = 4.dp))
@@ -222,9 +223,9 @@ private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
 
 @Composable
 private fun HeroButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, solid: Boolean, onClick: () -> Unit) {
-    Row(modifier.height(50.dp).clip(CircleShape).background(if (solid) Color.White else Color.White.copy(alpha = 0.18f))
+    Row(modifier.height(50.dp).clip(CircleShape).background(if (solid) com.mnvstudio.x11.ui.BrandGold else Color.White.copy(alpha = 0.10f))
         .clickable(role = Role.Button, onClick = onClick), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        val c = if (solid) Color(0xFF3B2A99) else Color.White
+        val c = if (solid) Color(0xFF111111) else Color.White
         Icon(icon, null, tint = c, modifier = Modifier.size(20.dp))
         Text(text, color = c, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, modifier = Modifier.padding(start = 8.dp))
     }

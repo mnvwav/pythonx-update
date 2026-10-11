@@ -77,7 +77,7 @@ fun ToolboxScreen(prefs: Prefs, navigate: (String) -> Unit, back: () -> Unit) {
 private fun ToolCard(t: ToolDef, modifier: Modifier, onClick: () -> Unit) {
     Column(modifier.heightIn(min = 112.dp).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM).clickable(onClick = onClick).padding(14.dp)) {
         Box(Modifier.size(36.dp).clip(ShapeS).background(Brush.linearGradient(com.mnvstudio.x11.ui.categoryGradient(categoryColorKey(t.category)))),
-            contentAlignment = Alignment.Center) { Icon(t.icon, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
+            contentAlignment = Alignment.Center) { Icon(t.icon, null, tint = com.mnvstudio.x11.ui.TileIcon, modifier = Modifier.size(20.dp)) }
         Text(t.name, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
         Text(t.description, color = Label, fontSize = 12.sp, maxLines = 2, lineHeight = 15.sp)
     }

@@ -137,7 +137,8 @@ class Prefs private constructor(context: Context) {
     // Look.
     /** "dark", "light", "amoled" or "system". */
     var themeMode by pref("themeMode", "dark")
-    var accent by pref("accent", "Blue")
+    var accent by pref("accent", "Gold")
+    var brandGold by pref("brandGold", false)
     var dynamicColor by pref("dynamicColor", false)
     var highContrast by pref("highContrast", false)
     /** Multiplies text size in the app's own screens. */
