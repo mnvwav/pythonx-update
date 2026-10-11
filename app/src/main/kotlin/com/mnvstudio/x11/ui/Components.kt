@@ -91,37 +91,32 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 fun accentGradient(): androidx.compose.ui.graphics.Brush =
     androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, androidx.compose.ui.graphics.lerp(Accent, Color(0xFF7C4DFF), 0.65f)))
 
-/** Brand gradient behind the mark (launcher icon background, logo tile). */
-val BrandGradient = listOf(Color(0xFF5B8CFF), Color(0xFF7C4DFF))
+/** Brand colors: gold wordmark on a black tile. */
+val BrandGradient = listOf(Color(0xFF1A1A1A), Color(0xFF000000))
+val BrandGold = Color(0xFFF7C948)
 
 /**
- * The X11 mark: a rounded X (one stroke solid, one translucent) with a mouse pointer on it. Coordinates come from
- * the 108-unit launcher icon (res/drawable/ic_launcher_foreground.xml), whose mark spans 24..84; that region is
- * fitted to this canvas. [split] (0..1) pushes the X's four arms outward and fades the pointer, for the splash.
+ * The X11 mark: the "X11" wordmark drawn as rounded strokes. Coordinates come from the 108-unit launcher icon
+ * (res/drawable/ic_launcher_foreground.xml), whose mark spans 22..84; that region is fitted to this canvas.
+ * [split] (0..1) pushes the X's four arms outward and fades the "11", for the opening animation.
  */
-fun DrawScope.drawToolMark(color: Color, split: Float = 0f, pointer: Boolean = true) {
-    val k = size.minDimension / 60f
-    val ox = (size.width - 60f * k) / 2 - 24f * k
-    val oy = (size.height - 60f * k) / 2 - 24f * k
+fun DrawScope.drawToolMark(color: Color = BrandGold, split: Float = 0f) {
+    val k = size.minDimension / 62f
+    val ox = (size.width - 62f * k) / 2 - 22f * k
+    val oy = (size.height - 62f * k) / 2 - 23f * k
     fun p(x: Float, y: Float) = Offset(ox + x * k, oy + y * k)
-    val w = 11f * k
-    val cx = 53f; val cy = 53f
-    // Each stroke is drawn as two arms from the centre so the splash can pull them apart.
-    fun arm(x: Float, y: Float, alpha: Float) {
-        val dx = (x - cx) * split * 0.9f; val dy = (y - cy) * split * 0.9f
-        drawLine(color.copy(alpha = color.alpha * alpha), p(cx + dx, cy + dy), p(x + dx, y + dy), w, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+    val w = 9f * k
+    val cap = androidx.compose.ui.graphics.StrokeCap.Round
+    // The X as four arms from its centre, so the splash can pull them apart.
+    val cx = 38f; val cy = 54f
+    for ((x, y) in listOf(27f to 39f, 49f to 69f, 49f to 39f, 27f to 69f)) {
+        val dx = (x - cx) * split * 1.2f; val dy = (y - cy) * split * 1.2f
+        drawLine(color, p(cx + dx, cy + dy), p(x + dx, y + dy), w, cap)
     }
-    arm(70f, 34f, 0.55f); arm(36f, 72f, 0.55f)
-    arm(36f, 34f, 1f); arm(70f, 72f, 1f)
-    if (pointer && split < 1f) {
-        val path = androidx.compose.ui.graphics.Path().apply {
-            moveTo(64f, 60f); lineTo(64f, 84f); lineTo(70f, 78f); lineTo(74.5f, 87f); lineTo(79f, 85f); lineTo(74.5f, 76f); lineTo(82.5f, 76f); close()
-            transform(androidx.compose.ui.graphics.Matrix().apply { translate(ox, oy); scale(k, k) })
-        }
-        val a = 1f - split
-        drawPath(path, color.copy(alpha = color.alpha * a))
-        drawPath(path, Color(0xFF3B2A99).copy(alpha = a), style = androidx.compose.ui.graphics.drawscope.Stroke(2.4f * k,
-            join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    val ones = color.copy(alpha = color.alpha * (1f - split))
+    for (x in listOf(63f, 79f)) {
+        drawLine(ones, p(x - 6f, 45f), p(x, 39f), w, cap)
+        drawLine(ones, p(x, 39f), p(x, 69f), w, cap)
     }
 }
 
@@ -134,7 +129,7 @@ fun Logo(size: Dp, modifier: Modifier = Modifier, framed: Boolean = true) {
     ) {
         Canvas(Modifier.size(size)) {
             val o = if (framed) this.size.minDimension * 0.16f else 0f
-            inset(o) { drawToolMark(Color.White) }
+            inset(o) { drawToolMark() }
         }
     }
 }
