@@ -87,6 +87,8 @@ object XHolder {
     private fun afterStart(app: Context, prefs: Prefs) {
         Linux.check(app)
         if (Linux.state != Linux.State.READY) return
+        // The profile's own startup script (Environment screen).
+        if (java.io.File(Linux.rootfs(app), "etc/x11-startup.sh").exists()) Linux.run(app, "sh /etc/x11-startup.sh", prefs.display, jobName = "startup script")
         if (prefs.desktopMode) Catalog.byId("twm")?.let { if (Linux.isInstalled(app, it)) Linux.launch(app, it, prefs.display) }
         for (id in prefs.autostart) {
             val a = Catalog.byId(id) ?: continue

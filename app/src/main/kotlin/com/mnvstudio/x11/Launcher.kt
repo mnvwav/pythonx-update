@@ -21,6 +21,7 @@ object Launcher {
     fun open(context: Context, app: LinuxApp, log: (String) -> Unit = {}): Boolean {
         if (!XHolder.ensureStarted(context)) { log(XHolder.error ?: "The X server couldn't start"); return false }
         Linux.launch(context, app, XHolder.display, log)
+        Prefs.of(context).addRecent(app.id)
         return true
     }
 

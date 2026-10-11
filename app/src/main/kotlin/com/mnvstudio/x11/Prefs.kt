@@ -131,6 +131,9 @@ class Prefs private constructor(context: Context) {
     /** Bring the last session back when the app starts again after being closed. */
     var restoreSession by pref("restoreSession", true)
 
+    /** Linux user apps run as ("root" or a user from the Users screen). */
+    var linuxUser by pref("linuxUser", "root")
+
     /** The active Linux profile (a folder under files/profiles). */
     var linuxProfile by pref("linuxProfile", "default")
 

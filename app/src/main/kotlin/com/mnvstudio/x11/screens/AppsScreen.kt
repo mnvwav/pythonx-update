@@ -24,6 +24,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Monitor
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CloudDownload
@@ -49,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,11 +98,14 @@ import com.mnvstudio.x11.ui.SectionTitle
 import com.mnvstudio.x11.ui.ShapeM
 import com.mnvstudio.x11.ui.SurfaceCard
 import com.mnvstudio.x11.ui.TopBar
+import com.mnvstudio.x11.ui.Warn
 
 fun appIcon(id: String): ImageVector = when (id) {
     "xterm" -> Icons.Filled.Terminal; "xcalc" -> Icons.Filled.Calculate; "xclock" -> Icons.Filled.Schedule
     "xeyes" -> Icons.Filled.Visibility; "xedit" -> Icons.Filled.Edit; "twm" -> Icons.Filled.Window
-    "xload" -> Icons.Filled.Insights; "xlogo" -> Icons.Filled.AutoAwesome; else -> Icons.Filled.Apps
+    "xload" -> Icons.Filled.Insights; "xlogo" -> Icons.Filled.AutoAwesome; "xmag" -> Icons.Filled.ZoomIn; "xfontsel" -> Icons.Filled.TextFields
+    "htop" -> Icons.Filled.Monitor; "nano", "vim" -> Icons.Filled.Code; "python3" -> Icons.Filled.DataObject; "mc" -> Icons.Filled.FolderOpen
+    "xfce4", "lxqt" -> Icons.Filled.DesktopWindows; "firefox" -> Icons.Filled.Language; "gimp" -> Icons.Filled.Brush; else -> Icons.Filled.Apps
 }
 
 /** The built-in Linux: set it up, then install, open and manage apps and packages. */
@@ -177,29 +192,58 @@ fun SetupCard() {
 @Composable
 private fun CatalogTab(prefs: Prefs, busy: String?, onOpen: (LinuxApp) -> Unit, onInstall: (LinuxApp) -> Unit, log: (String) -> Unit) {
     val context = LocalContext.current
-    Catalog.apps.groupBy { it.category }.forEach { (category, apps) ->
+    var query by rememberSaveable { mutableStateOf("") }
+    var filter by rememberSaveable { mutableStateOf("All") }
+    OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, shape = ShapeM,
+        placeholder = { Text("Search apps", color = Faint) }, leadingIcon = { Icon(Icons.Filled.Search, null, tint = Label) },
+        textStyle = TextStyle(color = Ink, fontSize = 15.sp))
+    Spacer(Modifier.height(10.dp))
+    Chips(listOf("All", "Favorites", "Recent", "Installed") + Catalog.categories, filter) { filter = it }
+    val recents = prefs.recentIds()
+    val shown = Catalog.apps.filter { a ->
+        (query.isBlank() || listOf(a.name, a.description, a.id, a.category).any { it.contains(query.trim(), true) }) && when (filter) {
+            "All" -> true
+            "Favorites" -> a.id in prefs.favorites
+            "Recent" -> a.id in recents
+            "Installed" -> Linux.isInstalled(context, a)
+            else -> a.category == filter
+        }
+    }.let { l -> if (filter == "Recent") l.sortedBy { recents.indexOf(it.id) } else l }
+    if (shown.isEmpty()) Text(when (filter) {
+        "Favorites" -> "No favorites yet. Tap the star next to an app."
+        "Recent" -> "Apps you open appear here."
+        else -> "No apps match."
+    }, color = Label, fontSize = 14.sp, modifier = Modifier.padding(top = 16.dp))
+    shown.groupBy { it.category }.forEach { (category, apps) ->
         SectionTitle(category)
         Column(Modifier.fillMaxWidth().clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)) {
             apps.forEachIndexed { i, app ->
                 val installed = remember(Linux.revision) { Linux.isInstalled(context, app) }
                 val working = busy == app.name
+                val fav = app.id in prefs.favorites
                 var menu by remember { mutableStateOf(false) }
                 Row(
-                    Modifier.fillMaxWidth().clickable(enabled = busy == null, role = Role.Button) { if (installed) onOpen(app) else onInstall(app) }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    Modifier.fillMaxWidth().clickable(enabled = busy == null && !app.needsExtensions, role = Role.Button) { if (installed) onOpen(app) else onInstall(app) }
+                        .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.size(42.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) {
-                        Icon(appIcon(app.id), null, tint = Accent, modifier = Modifier.size(22.dp))
+                        Icon(appIcon(app.id), null, tint = if (app.needsExtensions) Faint else Accent, modifier = Modifier.size(22.dp))
                     }
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(app.name, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(app.name, color = if (app.needsExtensions) Label else Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                             if (app.id in prefs.autostart) { Spacer(Modifier.size(8.dp)); Pill("autostart", Live) }
                         }
-                        Text(app.description, color = Label, fontSize = 12.sp)
+                        Text(if (app.needsExtensions) "Needs X extensions coming in a future update" else app.description,
+                            color = if (app.needsExtensions) Faint else Label, fontSize = 12.sp)
                     }
-                    Pill(when { working -> "Installing…"; installed -> "Open"; else -> "Install" }, if (installed) Live else Accent)
+                    if (!app.needsExtensions) Pill(when { working -> "Installing…"; installed -> "Open"; else -> "Install" }, if (installed) Live else Accent)
+                    Box(Modifier.size(40.dp).clip(CircleShape).clickable { prefs.favorites = if (fav) prefs.favorites - app.id else prefs.favorites + app.id },
+                        contentAlignment = Alignment.Center) {
+                        Icon(if (fav) Icons.Filled.Star else Icons.Filled.StarBorder, if (fav) "Remove ${app.name} from favorites" else "Add ${app.name} to favorites",
+                            tint = if (fav) Warn else Faint)
+                    }
                     if (installed) Box {
                         Box(Modifier.size(40.dp).clip(CircleShape).clickable { menu = true }, contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.MoreVert, "More for ${app.name}", tint = Label)
@@ -220,8 +264,6 @@ private fun CatalogTab(prefs: Prefs, busy: String?, onOpen: (LinuxApp) -> Unit, 
             }
         }
     }
-    Text("These apps use the classic X11 features this server supports. Apps that need GTK or Qt (Firefox, GIMP) aren't supported yet.",
-        color = Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp, start = 4.dp))
 }
 
 @Composable

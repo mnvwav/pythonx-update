@@ -68,6 +68,9 @@ object Linux {
     fun rootfs(context: Context): File { migrate(context); return File(profilesDir(context), activeProfileName(context)) }
     private fun marker(context: Context) = File(rootfs(context), ".x11-ready")
 
+    /** Tells screens that files or packages changed. */
+    fun bump() { revision++ }
+
     fun check(context: Context) {
         if (state != State.INSTALLING) state = if (marker(context).exists()) State.READY else State.MISSING
     }
@@ -150,12 +153,16 @@ object Linux {
         val lib = app.applicationInfo.nativeLibraryDir
         val root = rootfs(app)
         val tmp = File(app.cacheDir, "proot").apply { mkdirs() }
+        // Run as the chosen normal user (Users screen) unless this is a system task.
+        val user = Prefs.of(app).linuxUser
+        val asUser = user.isNotEmpty() && user != "root" && !command.startsWith("apk ")
+        val shellCommand = if (asUser) "su $user -c ${quote(command)}" else command
         val args = listOf(
             "$lib/libproot.so", "--kill-on-exit", "-0", "--link2symlink",
             "-r", root.path,
             "-b", "/dev", "-b", "/proc", "-b", "/sys", "-b", "${File(root, "tmp").path}:/dev/shm",
             "-w", "/root",
-            "/bin/sh", "-lc", command,
+            "/bin/sh", "-lc", shellCommand,
         )
         val pb = ProcessBuilder(args).redirectErrorStream(true)
         pb.environment().apply {
@@ -192,6 +199,9 @@ object Linux {
         return p
     }
 
+    /** Single-quotes a string for /bin/sh. */
+    fun quote(s: String) = "'" + s.replace("'", "'\\''") + "'"
+
     /** Runs a short command and collects its output. */
     fun capture(context: Context, command: String, onDone: (Int, List<String>) -> Unit) {
         val out = ArrayList<String>()
@@ -224,13 +234,16 @@ object Linux {
     fun installPackages(context: Context, packages: List<String>, onOutput: (String) -> Unit, onDone: (Boolean) -> Unit) {
         run(context, "apk update && apk add ${packages.joinToString(" ")}", 0, onOutput = onOutput) { code ->
             revision++
+            LinuxManager.logPackages(context, "add", packages, code == 0)
             if (code != 0) AppLog.e("apk add ${packages.joinToString(" ")} failed ($code)")
             onDone(code == 0)
         }
     }
 
     fun removePackages(context: Context, packages: List<String>, onOutput: (String) -> Unit, onDone: (Boolean) -> Unit) {
-        run(context, "apk del ${packages.joinToString(" ")}", 0, onOutput = onOutput) { code -> revision++; onDone(code == 0) }
+        run(context, "apk del ${packages.joinToString(" ")}", 0, onOutput = onOutput) { code ->
+            revision++; LinuxManager.logPackages(context, "del", packages, code == 0); onDone(code == 0)
+        }
     }
 
     /** Searches Alpine packages; each result is a name and a description. */

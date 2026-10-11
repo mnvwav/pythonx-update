@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Inventory2
@@ -73,6 +74,7 @@ private val TOOLS = listOf(
     "Fix" to listOf(
         Tool("diagnostics", Icons.Filled.HealthAndSafety, "Diagnostics", "Self-test, repair and logs"),
         Tool("maintenance", Icons.Filled.Build, "Maintenance", "Integrity check, cleanup, sources"),
+        Tool("dev", Icons.Filled.Code, "Developer tools", "Toolkits and Git"),
     ),
 )
 
