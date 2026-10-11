@@ -18,6 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.HomeRepairService
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Insights
@@ -62,6 +66,12 @@ import com.mnvstudio.x11.ui.TopBar
 private class Tool(val route: String, val icon: ImageVector, val title: String, val body: String)
 
 private val TOOLS = listOf(
+    "Tools" to listOf(
+        Tool("toolbox", Icons.Filled.HomeRepairService, "Toolbox", "70+ tools: files, system, network, web"),
+        Tool("browser", Icons.Filled.Public, "Browser", "Light web browser with private mode"),
+        Tool("downloads", Icons.Filled.Download, "Downloads", "Pause, resume, queue, multi-connection"),
+        Tool("share", Icons.Filled.Share, "Share over Wi-Fi", "Send files to any device's browser"),
+    ),
     "Use" to listOf(
         Tool("console", Icons.Filled.Terminal, "Terminal", "Run commands with history"),
         Tool("files", Icons.Filled.Folder, "Files", "Browse, edit, import and export"),

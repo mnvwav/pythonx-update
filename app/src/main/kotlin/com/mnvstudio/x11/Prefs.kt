@@ -154,6 +154,18 @@ class Prefs private constructor(context: Context) {
 
     // Library.
     var favorites by pref("favorites", emptySet<String>())
+    /** User-defined tools, one per line: name|command. */
+    var customTools by pref("customTools", "")
+    /** Browser: bookmarks and reading list as title|url lines; home page; private mode; light mode (no images/JS). */
+    var bookmarks by pref("bookmarks", "")
+    var readingList by pref("readingList", "")
+    var browserHome by pref("browserHome", "https://duckduckgo.com")
+    var browserPrivate by pref("browserPrivate", false)
+    var browserLight by pref("browserLight", false)
+    var browserDesktop by pref("browserDesktop", false)
+    /** Downloads: connections per file and the folder (inside Linux) they go to. */
+    var downloadConnections by pref("downloadConnections", 4)
+    var downloadDir by pref("downloadDir", "/root/Downloads")
     /** Recently opened app ids, newest first, comma separated. */
     var recents by pref("recents", "")
 

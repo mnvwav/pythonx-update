@@ -26,6 +26,12 @@ fun ToolScreen(route: String, arg: String, prefs: Prefs, navigate: (String) -> U
         "windows" -> WindowsScreen(back)
         "inspector" -> InspectorScreen(back)
         "input" -> InputScreen(back)
+        "toolbox" -> com.mnvstudio.x11.tools.ToolboxScreen(prefs, navigate, back)
+        "tool" -> com.mnvstudio.x11.tools.ToolRunScreen(prefs, arg, back)
+        "browser" -> com.mnvstudio.x11.tools.BrowserScreen(prefs, arg, navigate, back)
+        "downloads" -> com.mnvstudio.x11.tools.DownloadsScreen(prefs, back)
+        "share" -> com.mnvstudio.x11.tools.ShareScreen(back)
+        "markdown" -> com.mnvstudio.x11.tools.MarkdownScreen(back)
         else -> Text(route, color = Label, modifier = Modifier.fillMaxSize().wrapContentSize())
     }
 }
