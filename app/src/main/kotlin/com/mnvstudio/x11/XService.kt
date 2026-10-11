@@ -27,7 +27,7 @@ class XService : Service() {
         channel()
         val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
         ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(0), type)
-        if (!XHolder.start(Prefs(this))) {
+        if (!XHolder.start(this, Prefs(this))) {
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -59,12 +59,16 @@ class XService : Service() {
         .setOngoing(true)
         .setSilent(true)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
-        .setContentIntent(PendingIntent.getActivity(this, 0,
-            Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_ROUTE, "display").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+        .setContentIntent(route("display", 0))
+        .addAction(0, "Open", route("display", 2))
+        .addAction(0, "Settings", route("settings", 3))
         .addAction(0, "Stop", PendingIntent.getService(this, 1,
             Intent(this, XService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE))
         .build()
+
+    private fun route(route: String, code: Int) = PendingIntent.getActivity(this, code,
+        Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_ROUTE, route).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
     companion object {
         private const val CHANNEL = "server"

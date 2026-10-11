@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnvstudio.x11.Prefs
+import com.mnvstudio.x11.TermuxCommand
 import com.mnvstudio.x11.XHolder
 import com.mnvstudio.x11.XService
 import com.mnvstudio.x11.ui.Bad
@@ -124,15 +125,20 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
                 }
 
                 Spacer(Modifier.height(20.dp))
-                SectionTitle("Launch an app")
+                SectionTitle("Launch from Termux")
                 SurfaceCard {
-                    Text("From Termux or a proot distro:", color = Label, fontSize = 14.sp)
+                    Text("Install the mnvx11 command once (paste into Termux):", color = Label, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
-                    CommandBlock("export DISPLAY=:${prefs.display}")
+                    CommandBlock(TermuxCommand.install)
+                    Spacer(Modifier.height(14.dp))
+                    Text("Then start the server and an app in one go:", color = Label, fontSize = 14.sp)
                     Spacer(Modifier.height(10.dp))
-                    CommandBlock("xterm &")
+                    CommandBlock("mnvx11 :${prefs.display} xterm")
+                    Spacer(Modifier.height(10.dp))
+                    CommandBlock("eval \"$(mnvx11 :${prefs.display})\"", caption = "Or set DISPLAY in your shell")
                     Spacer(Modifier.height(12.dp))
-                    Text("Over TCP instead: DISPLAY=127.0.0.1:${prefs.display}", color = Faint, fontSize = 12.sp, fontFamily = Mono)
+                    Text("Without the command: export DISPLAY=:${prefs.display} (or 127.0.0.1:${prefs.display} over TCP)",
+                        color = Faint, fontSize = 12.sp, fontFamily = Mono)
                 }
 
                 Spacer(Modifier.height(20.dp))

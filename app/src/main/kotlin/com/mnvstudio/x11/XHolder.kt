@@ -1,5 +1,8 @@
 package com.mnvstudio.x11
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.LocalServerSocket
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
@@ -27,13 +30,22 @@ object XHolder {
 
     private val main = Handler(Looper.getMainLooper())
 
+    /** Text last copied by a Linux app, so it isn't sent straight back to X. */
+    @Volatile var lastFromX: String? = null; private set
+
     @Synchronized
-    fun start(prefs: Prefs): Boolean {
+    fun start(context: Context, prefs: Prefs): Boolean {
         if (server != null) return true
         val (w, h) = prefs.screenSize()
         val d = prefs.display
         val s = XServer(w, h, prefs.dpi())
         s.fitToScreen = prefs.fitWindows
+        s.setResources("Xft.dpi:\t${prefs.dpi()}\n")
+        if (prefs.clipboardSync) {
+            val cm = context.applicationContext.getSystemService(ClipboardManager::class.java)
+            s.syncPrimary = prefs.syncPrimary
+            s.onClipboard = { text -> main.post { lastFromX = text; runCatching { cm.setPrimaryClip(ClipData.newPlainText("X11", text)) } } }
+        }
         s.onClients = { n -> main.post { clients = n; onClientsChanged?.invoke(n) } }
         try {
             s.listenTcp(d)
@@ -57,6 +69,14 @@ object XHolder {
         server = null
         clients = 0
         Thread { s.shutdown() }.start()
+    }
+
+    /** Offers Android's clipboard to Linux apps (call while the app is in the foreground: Android only allows reading then). */
+    fun pushClipboard(context: Context) {
+        val s = server ?: return
+        val cm = context.getSystemService(ClipboardManager::class.java)
+        val text = runCatching { cm.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull() ?: return
+        if (text.isNotEmpty() && text != lastFromX) s.setClipboard(text)
     }
 
     private fun listenAbstract(s: XServer, d: Int) {

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnvstudio.x11.Prefs
+import com.mnvstudio.x11.TermuxCommand
 import com.mnvstudio.x11.ui.CommandBlock
 import com.mnvstudio.x11.ui.Good
 import com.mnvstudio.x11.ui.Ink
@@ -57,6 +58,15 @@ fun GuideScreen(prefs: Prefs, onBack: () -> Unit) {
                     CommandBlock("xterm &")
                 }
 
+                SectionTitle("The mnvx11 command")
+                SurfaceCard {
+                    CommandBlock(TermuxCommand.install, caption = "Install once in Termux")
+                    Spacer(Modifier.height(14.dp))
+                    CommandBlock("mnvx11 :$d xterm", caption = "Start the server on :$d and run an app")
+                    Spacer(Modifier.height(14.dp))
+                    CommandBlock("mnvx11 -o :$d xterm", caption = "Same, and switch to the display")
+                }
+
                 SectionTitle("proot-distro (Debian, Ubuntu…)")
                 SurfaceCard {
                     CommandBlock("proot-distro install debian && proot-distro login debian", caption = "In Termux")
@@ -68,10 +78,12 @@ fun GuideScreen(prefs: Prefs, onBack: () -> Unit) {
 
                 SectionTitle("Touch gestures")
                 SurfaceCard {
-                    Gesture("Touchpad", "One-finger drag moves the pointer · tap = left click · long-press then drag = hold and drag · " +
+                    Gesture("Trackpad", "One-finger drag moves the pointer · tap = left click · long-press then drag = hold and drag · " +
                         "two-finger tap = right click · two-finger drag = scroll")
                     Spacer(Modifier.height(12.dp))
                     Gesture("Direct touch", "Touch to click and drag · two-finger tap = right click · two-finger drag = scroll")
+                    Spacer(Modifier.height(12.dp))
+                    Gesture("Both modes", "Pinch to zoom the view · three-finger tap = middle click (paste in xterm)")
                     Spacer(Modifier.height(12.dp))
                     Gesture("Mouse & keyboard", "Bluetooth or USB mice and keyboards work directly. Ctrl and Alt on the extra keys bar stay on for one key.")
                 }
@@ -80,6 +92,7 @@ fun GuideScreen(prefs: Prefs, onBack: () -> Unit) {
                 SurfaceCard {
                     Support(true, "Classic X11 apps such as xterm, xeyes, xclock and xcalc")
                     Support(true, "Keyboard, mouse, touch, scrolling and multiple windows")
+                    Support(true, "Shared clipboard both ways, and typing in any script through your keyboard app")
                     Support(false, "Full desktops (XFCE, LXDE) and GTK/Qt apps need X extensions (RENDER, SHM, XInput) that aren't built yet")
                     Support(false, "OpenGL and hardware acceleration")
                 }

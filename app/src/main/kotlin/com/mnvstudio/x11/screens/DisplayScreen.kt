@@ -3,15 +3,15 @@ package com.mnvstudio.x11.screens
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.os.Build
+import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,19 +22,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -61,18 +57,14 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.mnvstudio.x11.Prefs
 import com.mnvstudio.x11.XHolder
 import com.mnvstudio.x11.XService
-import com.mnvstudio.x11.display.KeyMap
+import com.mnvstudio.x11.display.ExtraKeysBar
+import com.mnvstudio.x11.display.Sticky
 import com.mnvstudio.x11.display.XDisplayView
 import com.mnvstudio.x11.ui.Card
-import com.mnvstudio.x11.ui.CardHigh
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
-import com.mnvstudio.x11.ui.Line
-import com.mnvstudio.x11.ui.Mono
 import com.mnvstudio.x11.ui.PrimaryButton
 import com.mnvstudio.x11.ui.SecondaryButton
-import com.mnvstudio.x11.ui.ShapeS
-import com.mnvstudio.x11.ui.Violet
 
 /** Full-screen view of the X display, with a floating menu and an optional extra-keys bar. */
 @Composable
@@ -81,11 +73,19 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
     val activity = context as Activity
     val server = XHolder.server
 
-    // Immersive full screen and the chosen orientation while the display is open.
-    DisposableEffect(prefs.orientation) {
-        val controller = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+    // Immersive full screen, the chosen orientation and (optionally) drawing into the notch while the display is open.
+    DisposableEffect(prefs.orientation, prefs.drawInCutout) {
+        val window = activity.window
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
         controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         controller.hide(WindowInsetsCompat.Type.systemBars())
+        val oldCutout = if (Build.VERSION.SDK_INT >= 28) window.attributes.layoutInDisplayCutoutMode else 0
+        if (Build.VERSION.SDK_INT >= 28) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = if (prefs.drawInCutout) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
+            }
+        }
         activity.requestedOrientation = when (prefs.orientation) {
             "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
@@ -93,6 +93,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
         }
         onDispose {
             controller.show(WindowInsetsCompat.Type.systemBars())
+            if (Build.VERSION.SDK_INT >= 28) window.attributes = window.attributes.apply { layoutInDisplayCutoutMode = oldCutout }
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
@@ -109,8 +110,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
         return
     }
 
-    var ctrl by remember { mutableStateOf(false) }
-    var alt by remember { mutableStateOf(false) }
+    val sticky = remember { Sticky() }
     var menu by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<XDisplayView?>(null) }
 
@@ -129,11 +129,13 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
                     if (v.server !== server) v.server = server
                     v.directTouch = prefs.touchMode == Prefs.MODE_DIRECT
                     v.pointerSpeed = prefs.pointerSpeed
-                    v.smooth = prefs.smoothScaling
+                    if (v.smooth != prefs.smoothScaling) v.smooth = prefs.smoothScaling
+                    if (v.fitMode != prefs.fitMode) v.fitMode = prefs.fitMode
+                    v.maxFps = prefs.maxFps
+                    v.cursorScale = prefs.cursorScale
                     v.keepScreenOn = prefs.keepScreenOn
-                    v.stickyCtrl = { ctrl }
-                    v.stickyAlt = { alt }
-                    v.onStickyUsed = { ctrl = false; alt = false }
+                    v.stickyMods = { sticky.active() }
+                    v.onStickyUsed = { sticky.used() }
                 },
                 onRelease = { it.server = null },
             )
@@ -141,15 +143,16 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
             Box(Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopEnd)) {
                 Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0x99141826)).border(1.dp, Color(0x55FFFFFF), CircleShape)
                     .clickable { menu = true }, contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Menu, "Menu", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Menu, "Display menu", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(menu, { menu = false }, containerColor = Card) {
                     MenuItem(Icons.Filled.Keyboard, "Keyboard") { menu = false; showKeyboard() }
                     MenuItem(if (prefs.touchMode == Prefs.MODE_DIRECT) Icons.Filled.Mouse else Icons.Filled.TouchApp,
-                        if (prefs.touchMode == Prefs.MODE_DIRECT) "Switch to touchpad" else "Switch to direct touch") {
+                        if (prefs.touchMode == Prefs.MODE_DIRECT) "Switch to trackpad" else "Switch to direct touch") {
                         menu = false
                         prefs.touchMode = if (prefs.touchMode == Prefs.MODE_DIRECT) Prefs.MODE_TOUCHPAD else Prefs.MODE_DIRECT
                     }
+                    MenuItem(Icons.Filled.ZoomOutMap, "Reset zoom") { menu = false; view?.resetZoom() }
                     MenuItem(Icons.Filled.Keyboard, if (prefs.extraKeys) "Hide extra keys" else "Show extra keys") {
                         menu = false; prefs.extraKeys = !prefs.extraKeys
                     }
@@ -158,25 +161,8 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
             }
         }
         if (prefs.extraKeys) {
-            Row(
-                Modifier.fillMaxWidth().background(Color(0xFF0E1018)).navigationBarsPadding()
-                    .horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                ExtraKey("ESC") { view?.tapKey(KeyMap.ESC) }
-                ExtraKey("TAB") { view?.tapKey(KeyMap.TAB) }
-                ExtraKey("CTRL", active = ctrl) { ctrl = !ctrl }
-                ExtraKey("ALT", active = alt) { alt = !alt }
-                ExtraKey(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft) { view?.tapKey(KeyMap.LEFT) }
-                ExtraKey(icon = Icons.Filled.KeyboardArrowUp) { view?.tapKey(KeyMap.UP) }
-                ExtraKey(icon = Icons.Filled.KeyboardArrowDown) { view?.tapKey(KeyMap.DOWN) }
-                ExtraKey(icon = Icons.AutoMirrored.Filled.KeyboardArrowRight) { view?.tapKey(KeyMap.RIGHT) }
-                ExtraKey("HOME") { view?.tapKey(KeyMap.HOME) }
-                ExtraKey("END") { view?.tapKey(KeyMap.END) }
-                ExtraKey("PGUP") { view?.tapKey(KeyMap.PGUP) }
-                ExtraKey("PGDN") { view?.tapKey(KeyMap.PGDN) }
-                ExtraKey("R-CLICK") { server.click(3) }
-                ExtraKey(icon = Icons.Filled.Keyboard, accent = true) { showKeyboard() }
+            Box(Modifier.navigationBarsPadding()) {
+                ExtraKeysBar(prefs.keyLayout, sticky, view = { view }, onKeyboard = { showKeyboard() }, onRightClick = { server.click(3) })
             }
         }
     }
@@ -189,17 +175,4 @@ private fun MenuItem(icon: ImageVector, text: String, onClick: () -> Unit) {
         leadingIcon = { Icon(icon, null, tint = Label) },
         onClick = onClick,
     )
-}
-
-@Composable
-private fun ExtraKey(label: String? = null, icon: ImageVector? = null, active: Boolean = false, accent: Boolean = false, onClick: () -> Unit) {
-    Box(
-        Modifier.height(40.dp).widthIn(min = 48.dp).clip(ShapeS)
-            .background(if (active || accent) Violet else CardHigh).border(1.dp, if (active) Violet else Line, ShapeS)
-            .clickable(onClick = onClick).padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (icon != null) Icon(icon, label, tint = Color.White, modifier = Modifier.size(20.dp))
-        else Text(label ?: "", color = if (active) Color.White else Ink, fontFamily = Mono, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    }
 }

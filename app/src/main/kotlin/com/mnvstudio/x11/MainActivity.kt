@@ -31,17 +31,49 @@ class MainActivity : ComponentActivity() {
     /** Screen to open from the notification. */
     private var pendingRoute by mutableStateOf<String?>(null)
 
+    private lateinit var prefs: Prefs
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        intent ?: return
         intent.getStringExtra(EXTRA_ROUTE)?.let { pendingRoute = it }
+        // `mnvx11` from Termux: start the server on the requested display, then show it or step aside.
+        if (intent.action == TermuxCommand.ACTION_START) {
+            val d = intent.getIntExtra(TermuxCommand.EXTRA_DISPLAY, prefs.display).coerceIn(0, 9)
+            if (XHolder.server == null) prefs.display = d
+            XService.start(this)
+            if (intent.getBooleanExtra(TermuxCommand.EXTRA_OPEN, false)) pendingRoute = "display" else moveTaskToBack(true)
+        }
+    }
+
+    // Android only lets apps read the clipboard while focused, so offer it to Linux apps whenever we gain focus.
+    private val clipListener = android.content.ClipboardManager.OnPrimaryClipChangedListener { XHolder.pushClipboard(this) }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && prefs.clipboardSync) XHolder.pushClipboard(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        getSystemService(android.content.ClipboardManager::class.java).addPrimaryClipChangedListener(clipListener)
+    }
+
+    override fun onPause() {
+        getSystemService(android.content.ClipboardManager::class.java).removePrimaryClipChangedListener(clipListener)
+        super.onPause()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) intent?.getStringExtra(EXTRA_ROUTE)?.let { pendingRoute = it }
+        prefs = Prefs(this)
+        if (savedInstanceState == null) handleIntent(intent)
         val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         enableEdgeToEdge(dark, dark)
-        val prefs = Prefs(this)
         setContent {
             AppTheme {
                 // Routes: home, display, settings, guide.

@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.mnvstudio.x11.Prefs
+import com.mnvstudio.x11.TermuxCommand
 import com.mnvstudio.x11.ui.BrandGradient
 import com.mnvstudio.x11.ui.Card
 import com.mnvstudio.x11.ui.CardHigh
@@ -168,7 +169,7 @@ private fun ColumnScope.Welcome() {
     )
     Spacer(Modifier.height(32.dp))
     Feature(Icons.Filled.Tv, "Built-in display", "Your phone becomes the screen for X11 programs.")
-    Feature(Icons.Filled.TouchApp, "Touch friendly", "Touchpad gestures, direct touch, or a real mouse.")
+    Feature(Icons.Filled.TouchApp, "Touch friendly", "Trackpad gestures, direct touch, or a real mouse.")
     Feature(Icons.Filled.Terminal, "Works with Termux", "Point DISPLAY at :0 and launch apps as usual.")
 }
 
@@ -216,6 +217,12 @@ private fun SetupApps(prefs: Prefs) {
         Spacer(Modifier.height(14.dp))
         CommandBlock("xterm &", caption = "3. Launch it")
     }
+    SectionTitle("Faster: the mnvx11 command")
+    SurfaceCard(Modifier.padding(bottom = 12.dp)) {
+        CommandBlock(TermuxCommand.install, caption = "Install once")
+        Spacer(Modifier.height(14.dp))
+        CommandBlock("mnvx11 :${prefs.display} xterm", caption = "Starts the server and runs the app")
+    }
     SectionTitle("Debian / Ubuntu (proot-distro)")
     SurfaceCard {
         CommandBlock("apt install x11-apps xterm", caption = "Inside the distro")
@@ -234,7 +241,7 @@ private fun DisplaySetup(prefs: Prefs) {
     Text("Screen will be $w × $h", color = Faint, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp, start = 4.dp))
     Spacer(Modifier.height(20.dp))
     SectionTitle("Touch input")
-    OptionCard(Icons.Filled.Mouse, "Touchpad", "Drag to move a pointer, tap to click, two fingers to scroll or right-click.",
+    OptionCard(Icons.Filled.Mouse, "Trackpad", "Drag to move a pointer, tap to click, two fingers to scroll or right-click.",
         prefs.touchMode == Prefs.MODE_TOUCHPAD) { prefs.touchMode = Prefs.MODE_TOUCHPAD }
     Spacer(Modifier.height(10.dp))
     OptionCard(Icons.Filled.TouchApp, "Direct touch", "Touch exactly where you want to click, like a touchscreen laptop.",
@@ -291,7 +298,7 @@ private fun ColumnScope.Ready(prefs: Prefs) {
     SurfaceCard(padding = 16.dp) {
         Summary("Display", ":${prefs.display}")
         Summary("Resolution", "$w × $h")
-        Summary("Input", if (prefs.touchMode == Prefs.MODE_DIRECT) "Direct touch" else "Touchpad")
+        Summary("Input", if (prefs.touchMode == Prefs.MODE_DIRECT) "Direct touch" else "Trackpad")
     }
 }
 

@@ -20,14 +20,18 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnvstudio.x11.Prefs
@@ -38,6 +42,8 @@ import com.mnvstudio.x11.ui.Cyan
 import com.mnvstudio.x11.ui.Faint
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
+import com.mnvstudio.x11.ui.Mono
+import com.mnvstudio.x11.ui.Violet
 import com.mnvstudio.x11.ui.OptionCard
 import com.mnvstudio.x11.ui.Page
 import com.mnvstudio.x11.ui.SecondaryButton
@@ -82,8 +88,31 @@ fun SettingsScreen(prefs: Prefs, onReplayOnboarding: () -> Unit, onBack: () -> U
                         SliderRow("Detail", "${(prefs.scale * 100).roundToInt()}%", prefs.scale, 0.25f..1f, steps = 2) { prefs.scale = it }
                         Text("Lower detail makes apps larger and faster.", color = Faint, fontSize = 12.sp)
                     }
+                    if (prefs.resolution == Prefs.RES_CUSTOM) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            NumberField("Width", prefs.customW, Modifier.weight(1f)) { prefs.customW = it }
+                            Text("×", color = Label, modifier = Modifier.padding(horizontal = 10.dp))
+                            NumberField("Height", prefs.customH, Modifier.weight(1f)) { prefs.customH = it }
+                        }
+                    }
                     val (w, h) = prefs.screenSize()
                     Text("Screen: $w × $h", color = Label, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
+                    Spacer(Modifier.height(16.dp))
+                    Text("Fit to phone", color = Ink, fontSize = 15.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Chips(listOf("fit", "stretch", "pixel"), prefs.fitMode,
+                        label = { when (it) { "fit" -> "Fit"; "stretch" -> "Stretch"; else -> "1:1 pixels" } }) { prefs.fitMode = it }
+                    Spacer(Modifier.height(16.dp))
+                    Text("Text size (DPI)", color = Ink, fontSize = 15.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Chips(listOf("0", "96", "120", "144", "192", "240"), "${prefs.dpiSetting}",
+                        label = { if (it == "0") "Auto (${prefs.dpi()})" else it }) { prefs.dpiSetting = it.toInt() }
+                    Text("Higher makes text bigger in apps that follow Xft.dpi.", color = Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+                    Spacer(Modifier.height(16.dp))
+                    Text("Frame rate limit", color = Ink, fontSize = 15.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Chips(listOf("30", "60", "120"), "${prefs.maxFps}", label = { "$it fps" }) { prefs.maxFps = it.toInt() }
                     Spacer(Modifier.height(16.dp))
                     Text("Display number", color = Ink, fontSize = 15.sp)
                     Spacer(Modifier.height(10.dp))
@@ -96,18 +125,35 @@ fun SettingsScreen(prefs: Prefs, onReplayOnboarding: () -> Unit, onBack: () -> U
                     ToggleRow("Fill the screen with each app", "New windows open full screen when no window manager runs", prefs.fitWindows) { prefs.fitWindows = it }
                     ToggleRow("Smooth scaling", "Filter the picture when it's scaled to your screen", prefs.smoothScaling) { prefs.smoothScaling = it }
                     ToggleRow("Keep screen on", "While the display is open", prefs.keepScreenOn) { prefs.keepScreenOn = it }
+                    ToggleRow("Use the notch area", "Draw behind the camera cutout in full screen", prefs.drawInCutout) { prefs.drawInCutout = it }
                 }
 
                 SectionTitle("Input")
                 Group {
-                    OptionCard(Icons.Filled.Mouse, "Touchpad", "Drag moves the pointer, tap clicks, two fingers scroll or right-click.",
+                    OptionCard(Icons.Filled.Mouse, "Trackpad", "Drag moves the pointer, tap clicks, two fingers scroll or right-click.",
                         prefs.touchMode == Prefs.MODE_TOUCHPAD) { prefs.touchMode = Prefs.MODE_TOUCHPAD }
                     Spacer(Modifier.height(10.dp))
                     OptionCard(Icons.Filled.TouchApp, "Direct touch", "Touch where you want to click; two fingers scroll.",
                         prefs.touchMode == Prefs.MODE_DIRECT) { prefs.touchMode = Prefs.MODE_DIRECT }
                     Spacer(Modifier.height(8.dp))
                     SliderRow("Pointer speed", "${"%.1f".format(prefs.pointerSpeed)}×", prefs.pointerSpeed, 0.5f..3f) { prefs.pointerSpeed = it }
-                    ToggleRow("Extra keys bar", "Esc, Tab, Ctrl, Alt and arrows above the keyboard", prefs.extraKeys) { prefs.extraKeys = it }
+                    SliderRow("Cursor size", "${"%.1f".format(prefs.cursorScale)}×", prefs.cursorScale, 0.6f..3f) { prefs.cursorScale = it }
+                    ToggleRow("Extra keys bar", "Esc, Tab, Ctrl, Alt, Super, arrows and F1–F12 above the keyboard", prefs.extraKeys) { prefs.extraKeys = it }
+                    Spacer(Modifier.height(8.dp))
+                    Text("Extra keys layout", color = Ink, fontSize = 15.sp)
+                    OutlinedTextField(prefs.keyLayout, { prefs.keyLayout = it.uppercaseKeys() }, Modifier.fillMaxWidth().padding(top = 8.dp),
+                        textStyle = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = Ink), shape = ShapeM)
+                    Text("Key names: ESC TAB CTRL ALT SHIFT SUPER UP DOWN LEFT RIGHT HOME END PGUP PGDN INS DEL BKSP ENTER F1–F12 " +
+                        "FN KBD RCLICK. Other text is typed as is. Tap a modifier for one key, double-tap to lock it.",
+                        color = Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
+                    Text("Reset layout", color = Violet, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 8.dp).clickable { prefs.keyLayout = Prefs.DEFAULT_KEYS })
+                }
+
+                SectionTitle("Clipboard")
+                SurfaceCard {
+                    ToggleRow("Share clipboard", "Copy and paste between Android and Linux apps", prefs.clipboardSync) { prefs.clipboardSync = it }
+                    ToggleRow("Include mouse selections", "Also copy text you select in Linux apps (PRIMARY)", prefs.syncPrimary) { prefs.syncPrimary = it }
                 }
 
                 SectionTitle("App")
@@ -121,6 +167,19 @@ fun SettingsScreen(prefs: Prefs, onReplayOnboarding: () -> Unit, onBack: () -> U
             }
         }
     }
+}
+
+/** Keeps known key names upper-case while leaving typed text (like | or ~) alone. */
+private fun String.uppercaseKeys() = split(" ").joinToString(" ") { if (it.length > 1 && it.all(Char::isLetterOrDigit)) it.uppercase() else it }
+
+@Composable
+private fun NumberField(label: String, value: Int, modifier: Modifier, onChange: (Int) -> Unit) {
+    OutlinedTextField(
+        "$value", { t -> t.filter(Char::isDigit).take(4).toIntOrNull()?.let(onChange) }, modifier,
+        label = { Text(label) }, singleLine = true, shape = ShapeM,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        textStyle = TextStyle(fontFamily = Mono, color = Ink),
+    )
 }
 
 @Composable
