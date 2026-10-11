@@ -72,7 +72,8 @@ object Linux {
     fun bump() { revision++ }
 
     fun check(context: Context) {
-        if (state != State.INSTALLING) state = if (marker(context).exists()) State.READY else State.MISSING
+        if (state != State.INSTALLING) state = if (marker(context).exists() && !tooNew(context)) State.READY else State.MISSING
+        if (state == State.MISSING && marker(context).exists()) status = "Linux needs a quick reinstall (Alpine $ALPINE) so packages can install."
     }
 
     fun prootAvailable(context: Context) = File(context.applicationInfo.nativeLibraryDir, "libproot.so").exists()
@@ -83,14 +84,26 @@ object Linux {
 
     // ---------------------------------------------------------------- setup
 
+    /** Alpine release to install; see [install] for why it's pinned. */
+    const val ALPINE = "3.22"
+
+    /** True for a rootfs from Alpine 3.23 or later, whose apk doesn't work under proot. */
+    fun tooNew(context: Context): Boolean = runCatching {
+        val v = File(rootfs(context), "etc/alpine-release").readText().trim().split('.')
+        v[0].toInt() > 3 || (v[0].toInt() == 3 && v[1].toInt() >= 23)
+    }.getOrDefault(false)
+
     /** Downloads and unpacks Alpine, then prepares DNS, repositories and the X11 socket directory. */
     fun install(context: Context) {
         if (state == State.INSTALLING) return
-        state = State.INSTALLING; progress = 0f; status = "Finding the latest Alpine Linux…"
+        state = State.INSTALLING; progress = 0f; status = "Finding Alpine Linux $ALPINE…"
         val app = context.applicationContext
         Thread {
             try {
-                val base = "https://dl-cdn.alpinelinux.org/alpine/latest-stable/releases/$arch/"
+                // Pinned: Alpine 3.23+ ships apk-tools 3, which fails under proot ("Operation not permitted" /
+                // "Function not implemented" while opening APKINDEX). 3.22 still has apk-tools 2.
+                val base = "https://dl-cdn.alpinelinux.org/alpine/v$ALPINE/releases/$arch/"
+                Prefs.of(app).prootNoSeccomp = false
                 val yaml = URL(base + "latest-releases.yaml").readText()
                 val file = Regex("file:\\s*(alpine-minirootfs-[^\\s]+\\.tar\\.gz)").find(yaml)?.groupValues?.get(1)
                     ?: error("couldn't find the Alpine download")
@@ -319,6 +332,10 @@ object Linux {
         if (!prootAvailable(app)) { set(0, false, "Rebuild the app with internet access so Gradle can download proot."); finish(); return }
         set(0, true)
         if (!marker(app).exists()) { set(1, false, "Set up Linux first."); finish(); return }
+        if (tooNew(app)) {
+            set(1, false, "This Linux is Alpine 3.23 or newer, whose package tool can't run on Android. Tap Reset Linux to reinstall Alpine $ALPINE.")
+            finish(); return
+        }
         prepare(rootfs(app))
         set(1, true, "DNS settings refreshed")
 
