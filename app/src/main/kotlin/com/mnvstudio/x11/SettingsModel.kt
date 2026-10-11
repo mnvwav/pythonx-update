@@ -58,7 +58,13 @@ object SettingsModel {
         SettingItem("display", "Display", "Display number", "DISPLAY=:N for apps", Kind.CHOICE, advanced = true, needsRestart = true,
             options = (0..3).map { "$it" to ":$it" }),
         // Windows
-        SettingItem("desktopMode", "Windows", "Desktop mode", "Movable, resizable windows with a window manager", Kind.TOGGLE, needsRestart = true, keywords = "twm wm"),
+        SettingItem("desktopMode", "Windows", "Desktop mode", "Windows get title bars: move, resize, snap, minimize, virtual desktops", Kind.TOGGLE,
+            needsRestart = true, keywords = "window manager floating windowed"),
+        SettingItem("desktops", "Windows", "Virtual desktops", "", Kind.CHOICE, options = (1..6).map { "$it" to "$it" }, visible = { p.desktopMode }, needsRestart = true),
+        SettingItem("snapping", "Windows", "Snap to edges", "Drag to the left or right edge for half the screen, top to maximize", Kind.TOGGLE,
+            visible = { p.desktopMode }, needsRestart = true),
+        SettingItem("titleBarHeight", "Windows", "Title bar height", "", Kind.CHOICE, options = listOf("20" to "Small", "24" to "Medium", "32" to "Large (touch)"),
+            visible = { p.desktopMode }, needsRestart = true, keywords = "decorations"),
         SettingItem("fitWindows", "Windows", "Full-screen apps", "Without a window manager, each window fills the screen", Kind.TOGGLE,
             enabled = { !p.desktopMode }, needsRestart = true),
         // Input

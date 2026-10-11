@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Window
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -41,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,6 +126,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<XDisplayView?>(null) }
     var fps by remember { mutableIntStateOf(0) }
+    var switcher by remember { mutableStateOf(false) }
 
     fun showKeyboard() {
         val v = view ?: return
@@ -131,7 +135,16 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().background(Color.Black).imePadding()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            // Follow rotation: when the phone's shape no longer matches the display's, restart it at the new size.
+            val viewLandscape = maxWidth > maxHeight
+            val serverLandscape = server.width > server.height
+            LaunchedEffect(viewLandscape, prefs.followRotation, prefs.orientation) {
+                if (prefs.followRotation && prefs.orientation == "auto" && viewLandscape != serverLandscape) {
+                    kotlinx.coroutines.delay(700)
+                    XHolder.restart(context, "rotated to ${if (viewLandscape) "landscape" else "portrait"}")
+                }
+            }
             AndroidView(
                 factory = { ctx -> XDisplayView(ctx).also { view = it } },
                 modifier = Modifier.fillMaxSize(),
@@ -160,6 +173,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                     PrimaryButton("Linux apps", Modifier.widthIn(min = 200.dp), icon = Icons.Filled.Apps) { onApps() }
                 }
             }
+            if (switcher) WindowSwitcher(onDone = { switcher = false }, Modifier.align(Alignment.Center).padding(20.dp))
             if (prefs.perfOverlay) {
                 Text("$fps fps · ${server.width}×${server.height} · ${XHolder.clients} apps", color = Color.White, fontFamily = Mono, fontSize = 11.sp,
                     modifier = Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopStart).clip(CircleShape)
@@ -178,6 +192,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                         menu = false
                         prefs.touchMode = if (prefs.touchMode == Prefs.MODE_DIRECT) Prefs.MODE_TOUCHPAD else Prefs.MODE_DIRECT
                     }
+                    MenuItem(Icons.Filled.Window, "Windows & desktops") { menu = false; switcher = true }
                     MenuItem(Icons.Filled.ZoomOutMap, "Reset zoom") { menu = false; view?.resetZoom() }
                     MenuItem(Icons.Filled.PhotoCamera, "Screenshot") {
                         menu = false

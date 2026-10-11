@@ -17,7 +17,9 @@ import kotlin.reflect.KProperty
  */
 class Prefs private constructor(context: Context) {
     private val sp: SharedPreferences = context.applicationContext.getSharedPreferences("prefs", Context.MODE_PRIVATE)
-    private val metrics = context.applicationContext.resources.displayMetrics
+    private val res = context.applicationContext.resources
+    /** Read live: the size changes when the phone rotates. */
+    private val metrics get() = res.displayMetrics
     private val entries = LinkedHashMap<String, Entry<*>>()
 
     /** One setting: its key, default and live state. */
@@ -77,7 +79,15 @@ class Prefs private constructor(context: Context) {
     var followRotation by pref("followRotation", false)
 
     // Windows.
+    /** Built-in window manager: title bars, movable and resizable windows, virtual desktops. */
     var desktopMode by pref("desktopMode", false)
+    var desktops by pref("desktops", 4)
+    var snapping by pref("snapping", true)
+    var titleBarHeight by pref("titleBarHeight", 24)
+    /** Remembered window geometry by app class: "Class=x,y,w,h;…". */
+    var placements by pref("placements", "")
+    /** Per-app window rules by app class: "XTerm=fullscreen;…". */
+    var appRules by pref("appRules", "")
     var fitWindows by pref("fitWindows", true)
     /** Catalog app ids started with the display. */
     var autostart by pref("autostart", emptySet<String>())
@@ -188,7 +198,8 @@ class Prefs private constructor(context: Context) {
         }
         val long = max(metrics.widthPixels, metrics.heightPixels)
         val short = min(metrics.widthPixels, metrics.heightPixels)
-        val (w, h) = if (orientation == "portrait") short to long else long to short
+        val portrait = orientation == "portrait" || (orientation == "auto" && metrics.heightPixels > metrics.widthPixels)
+        val (w, h) = if (portrait) short to long else long to short
         fun even(v: Float) = (v.roundToInt() / 2 * 2).coerceAtLeast(320)
         return even(w * scale) to even(h * scale)
     }

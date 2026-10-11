@@ -19,6 +19,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Window
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.HealthAndSafety
@@ -70,6 +72,10 @@ private val TOOLS = listOf(
         Tool("backup", Icons.Filled.Backup, "Backup & restore", "Export or import the whole environment"),
         Tool("environment", Icons.Filled.Tune, "Environment", "Variables, startup scripts, shell profile"),
         Tool("users", Icons.Filled.Person, "Users", "Run as root or a normal user"),
+    ),
+    "Display" to listOf(
+        Tool("windows", Icons.Filled.Window, "Windows", "Switcher, desktops, per-app rules"),
+        Tool("inspector", Icons.Filled.Insights, "X11 Inspector", "Clients, requests, extensions, recorder"),
     ),
     "Fix" to listOf(
         Tool("diagnostics", Icons.Filled.HealthAndSafety, "Diagnostics", "Self-test, repair and logs"),

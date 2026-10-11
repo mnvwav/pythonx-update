@@ -54,6 +54,7 @@ object XHolder {
         val d = prefs.display
         val s = XServer(w, h, prefs.dpi())
         s.fitToScreen = prefs.fitWindows
+        configureWm(s, prefs)
         s.setResources("Xft.dpi:\t${prefs.dpi()}\n")
         if (prefs.clipboardSync) {
             val cm = app.getSystemService(ClipboardManager::class.java)
@@ -83,13 +84,38 @@ object XHolder {
         return true
     }
 
+    /** Sets up the built-in window manager from settings, and saves window placement as it changes. */
+    fun configureWm(s: XServer, prefs: Prefs) {
+        synchronized(s) {
+            s.setWindowManager(prefs.desktopMode)
+            val wm = s.wm ?: return
+            wm.desktops = prefs.desktops.coerceIn(1, 9)
+            wm.snapping = prefs.snapping
+            wm.style.height = prefs.titleBarHeight.coerceIn(18, 40)
+            prefs.placements.split(';').forEach { e ->
+                val (k, v) = e.split('=').takeIf { it.size == 2 } ?: return@forEach
+                v.split(',').mapNotNull { it.toIntOrNull() }.takeIf { it.size == 4 }?.let { wm.placements[k] = it.toIntArray() }
+            }
+            prefs.appRules.split(';').forEach { e -> e.split('=').takeIf { it.size == 2 }?.let { wm.rules[it[0]] = it[1] } }
+            wm.onPlacement = { cls, g ->
+                main.post {
+                    val map = prefs.placements.split(';').filter { it.isNotEmpty() && !it.startsWith("$cls=") } + "$cls=${g.joinToString(",")}"
+                    prefs.placements = map.takeLast(40).joinToString(";")
+                }
+            }
+            wm.onChange = { main.post { wmRevision++ } }
+        }
+    }
+
+    /** Bumped when windows change in the built-in window manager (for the switcher). */
+    var wmRevision by mutableIntStateOf(0)
+
     /** Desktop mode and autostart apps, once the server accepts connections. */
     private fun afterStart(app: Context, prefs: Prefs) {
         Linux.check(app)
         if (Linux.state != Linux.State.READY) return
         // The profile's own startup script (Environment screen).
         if (java.io.File(Linux.rootfs(app), "etc/x11-startup.sh").exists()) Linux.run(app, "sh /etc/x11-startup.sh", prefs.display, jobName = "startup script")
-        if (prefs.desktopMode) Catalog.byId("twm")?.let { if (Linux.isInstalled(app, it)) Linux.launch(app, it, prefs.display) }
         for (id in prefs.autostart) {
             val a = Catalog.byId(id) ?: continue
             if (a.id != "twm" && Linux.isInstalled(app, a)) Linux.launch(app, a, prefs.display)
@@ -116,6 +142,20 @@ object XHolder {
                 if (idle) { AppLog.i("Stopping the idle server"); XService.stop(ctx) } else main.postDelayed(this, 60_000)
             }
         }, 60_000)
+    }
+
+    /**
+     * Restarts the display with the current settings and brings the active session's apps back:
+     * used after rotation (new size) and for recovery when the display stops responding.
+     */
+    fun restart(context: Context, reason: String) {
+        AppLog.i("Restarting the display: $reason")
+        val app = context.applicationContext
+        val session = Sessions.active(app)
+        stop()
+        main.postDelayed({
+            if (session != null) Sessions.launch(app, session) else ensureStarted(app)
+        }, 400)
     }
 
     @Synchronized
