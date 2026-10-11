@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- An "X" made of two crossing strokes in violet and cyan, inside a display frame. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M33,36h42a5,5 0,0 1,5 5v26a5,5 0,0 1,-5 5h-42a5,5 0,0 1,-5 -5v-26a5,5 0,0 1,5 -5z"
+        android:strokeColor="#55FFFFFF" android:strokeWidth="2.5" android:fillColor="#00000000" />
+    <path android:pathData="M44,44L64,64" android:strokeColor="#FF8B6CFF" android:strokeWidth="6" android:strokeLineCap="round" />
+    <path android:pathData="M64,44L44,64" android:strokeColor="#FF2DD4EE" android:strokeWidth="6" android:strokeLineCap="round" />
+    <path android:pathData="M46,78h16" android:strokeColor="#55FFFFFF" android:strokeWidth="2.5" android:strokeLineCap="round" />
+</vector>
