@@ -91,37 +91,45 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 fun accentGradient(): androidx.compose.ui.graphics.Brush =
     androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.lerp(Accent, Color.White, 0.06f), androidx.compose.ui.graphics.lerp(Accent, Color.Black, 0.12f)))
 
-/** Brand colors: a white page with a red/black X on a black tile. */
-val BrandGradient = listOf(Color(0xFF1E1E20), Color(0xFF111112))
+/** Brand colors: a crimson loop with a soft-white core on a charcoal tile. */
+val BrandGradient = listOf(Color(0xFF232326), Color(0xFF111112))
 val BrandAccent = Color(0xFFD45D68)
-private val PageWhite = Color(0xFFECEBE8)
-private val FoldGrey = Color(0xFFC9CCD1)
-private val InkBlack = Color(0xFF111111)
+val BrandLight = Color(0xFFE2737D)
+val BrandDeep = Color(0xFFB84651)
+val BrandCore = Color(0xFFF2F1EE)
 
 /**
- * The X11 mark: a page with a folded corner and an X (one red stroke over a black one). Coordinates come from the
- * 108-unit launcher icon (res/drawable/ic_launcher_foreground.xml), whose mark spans 24..86 × 24..84; that region is
- * fitted to this canvas. [split] (0..1) pulls the X apart and fades the page, for the opening animation.
+ * The X11 mark: one continuous crimson loop (a figure-eight laid on the diagonal, its crossing forming the X) with a
+ * soft-white core where it crosses. Geometry is in the 108-unit space of res/drawable/ic_launcher_foreground.xml,
+ * centred on (54, 54) and rotated 45°.
  */
-fun DrawScope.drawToolMark(split: Float = 0f) {
-    val k = size.minDimension / 62f
-    val ox = (size.width - 62f * k) / 2 - 24f * k
-    val oy = (size.height - 62f * k) / 2 - 23f * k
-    fun p(x: Float, y: Float) = Offset(ox + x * k, oy + y * k)
-    val pageAlpha = 1f - split
-    if (pageAlpha > 0f) {
-        val page = androidx.compose.ui.graphics.Path().apply { moveTo(24f, 24f); lineTo(72f, 24f); lineTo(86f, 38f); lineTo(86f, 84f); lineTo(24f, 84f); close()
-            transform(androidx.compose.ui.graphics.Matrix().apply { translate(ox, oy); scale(k, k) }) }
-        val fold = androidx.compose.ui.graphics.Path().apply { moveTo(72f, 24f); lineTo(72f, 38f); lineTo(86f, 38f); close()
-            transform(androidx.compose.ui.graphics.Matrix().apply { translate(ox, oy); scale(k, k) }) }
-        drawPath(page, PageWhite.copy(alpha = pageAlpha)); drawPath(fold, FoldGrey.copy(alpha = pageAlpha))
+fun loopPath(): androidx.compose.ui.graphics.Path = androidx.compose.ui.graphics.Path().apply {
+    moveTo(54f, 54f)
+    cubicTo(64f, 44f, 80f, 30f, 82f, 44f); cubicTo(84f, 58f, 66f, 62f, 54f, 54f)
+    cubicTo(42f, 46f, 26f, 50f, 26f, 64f); cubicTo(28f, 78f, 44f, 64f, 54f, 54f)
+}
+
+/** Maps the 108-unit logo space onto this canvas so the mark fills about [fill] of it. */
+fun DrawScope.logoMatrix(fill: Float = 1f): androidx.compose.ui.graphics.Matrix {
+    val k = size.minDimension / 68f * fill
+    return androidx.compose.ui.graphics.Matrix().apply {
+        translate(size.width / 2, size.height / 2); rotateZ(45f); scale(k, k); translate(-54f, -54f)
     }
-    val w = 9f * k; val cap = androidx.compose.ui.graphics.StrokeCap.Round
-    val d = 14f * split
-    // On the dark splash the black stroke turns white so it stays visible once the page fades.
-    val dark = androidx.compose.ui.graphics.lerp(InkBlack, PageWhite, split)
-    drawLine(dark, p(66f + d, 46f - d), p(40f - d, 72f + d), w, cap)
-    drawLine(BrandAccent, p(40f - d, 46f - d), p(66f + d, 72f + d), w, cap)
+}
+
+/** Draws the mark; [drawn] (0..1) traces the loop, [core] (0..1) scales the white core in. */
+fun DrawScope.drawToolMark(drawn: Float = 1f, core: Float = 1f, fill: Float = 1f) {
+    val m = logoMatrix(fill)
+    val k = size.minDimension / 68f * fill
+    val path = loopPath().apply { transform(m) }
+    val part = if (drawn >= 1f) path else androidx.compose.ui.graphics.Path().also { out ->
+        val pm = androidx.compose.ui.graphics.PathMeasure().apply { setPath(path, false) }
+        pm.getSegment(0f, pm.length * drawn, out, true)
+    }
+    val brush = androidx.compose.ui.graphics.Brush.linearGradient(listOf(BrandLight, BrandDeep), Offset.Zero, Offset(size.width, size.height))
+    drawPath(part, brush, style = androidx.compose.ui.graphics.drawscope.Stroke(8f * k, cap = androidx.compose.ui.graphics.StrokeCap.Round,
+        join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    if (core > 0f) drawCircle(BrandCore, 4.2f * k * core, Offset(size.width / 2, size.height / 2))
 }
 
 @Composable

@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- X11 launcher mark. Same geometry as drawToolMark() in ui/Components.kt: a page with a folded corner and a red/black X. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- X11 launcher mark. Same geometry as loopPath() in ui/Components.kt: one continuous loop crossing in an X, with a core. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFECEBE8" android:pathData="M24,24H72L86,38V84H24Z" />
-    <path android:fillColor="#FFC9CCD1" android:pathData="M72,24V38H86Z" />
-    <path android:strokeColor="#FF111111" android:strokeWidth="9" android:strokeLineCap="round" android:pathData="M66,46L40,72" />
-    <path android:strokeColor="#FFD45D68" android:strokeWidth="9" android:strokeLineCap="round" android:pathData="M40,46L66,72" />
+    <group>
+    <group android:rotation="45" android:pivotX="54" android:pivotY="54">
+        <path android:strokeWidth="8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M54,54C64,44 80,30 82,44C84,58 66,62 54,54C42,46 26,50 26,64C28,78 44,64 54,54">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="26" android:startY="30" android:endX="84" android:endY="78"
+                    android:startColor="#FFE2737D" android:endColor="#FFB84651" />
+            </aapt:attr>
+        </path>
+    </group>
+    <path android:fillColor="#FFF2F1EE" android:pathData="M49.8,54a4.2,4.2 0 1,0 8.4,0a4.2,4.2 0 1,0 -8.4,0Z" />
+    </group>
 </vector>

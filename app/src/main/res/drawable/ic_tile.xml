@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Quick Settings tile icon. Same geometry as drawToolMark() in ui/Components.kt: a page with a folded corner and a red/black X. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp" android:viewportWidth="66" android:viewportHeight="66">
-    <group android:translateX="-21" android:translateY="-22">
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="5" android:strokeLineJoin="round" android:pathData="M24,24H72L86,38V84H24ZM72,24V38H86" />
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="9" android:strokeLineCap="round" android:pathData="M66,46L40,72M40,46L66,72" />
+<!-- Quick Settings tile icon. Same geometry as loopPath() in ui/Components.kt: one continuous loop crossing in an X, with a core. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp" android:height="24dp" android:viewportWidth="68" android:viewportHeight="68">
+    <group android:translateX="-20" android:translateY="-20">
+    <group android:rotation="45" android:pivotX="54" android:pivotY="54">
+        <path android:strokeColor="#FFFFFFFF" android:strokeWidth="8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M54,54C64,44 80,30 82,44C84,58 66,62 54,54C42,46 26,50 26,64C28,78 44,64 54,54" />
+    </group>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M49.8,54a4.2,4.2 0 1,0 8.4,0a4.2,4.2 0 1,0 -8.4,0Z" />
     </group>
 </vector>
