@@ -126,7 +126,8 @@ object Linux {
             put("TERM", "xterm-256color")
             put("LANG", "C.UTF-8")
             put("TMPDIR", "/tmp")
-            put("DISPLAY", ":$display")
+            // Loopback TCP is the most reliable route from inside proot (the abstract socket needs libxcb support).
+            put("DISPLAY", "127.0.0.1:$display")
         }
         val p = try { pb.start() } catch (e: Exception) {
             onOutput("Couldn't start Linux: ${e.message}"); onExit(-1); return null

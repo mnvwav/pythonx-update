@@ -96,7 +96,8 @@ fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
         XService.start(context)
         addLog("$ ${app.command}")
         Linux.run(context, wait + app.command, prefs.display, ::addLog) { code -> if (code != 0) addLog("${app.name} exited ($code)") }
-        navigate("display")
+        // Give it a moment to connect; if it fails right away, stay here so the error is visible in Output.
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ if (XHolder.clients > 0) navigate("display") else addLog("Waiting for ${app.name} to connect… (check the messages above)") }, 2500)
     }
 
     fun install(app: LinuxApp, thenOpen: Boolean) {

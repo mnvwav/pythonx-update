@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     AnimatedContent(stack.last(), transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "route") { route ->
                         when (route) {
-                            "display" -> DisplayScreen(prefs, back)
+                            "display" -> DisplayScreen(prefs, back, onApps = { go("apps") })
                             "settings" -> SettingsScreen(prefs, onReplayOnboarding = { stack.clear(); stack += "home"; onboarding = true }, onBack = back)
                             "guide" -> GuideScreen(prefs, back)
                             "apps" -> AppsScreen(prefs, go, back)

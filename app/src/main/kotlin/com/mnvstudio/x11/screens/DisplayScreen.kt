@@ -65,10 +65,11 @@ import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
 import com.mnvstudio.x11.ui.PrimaryButton
 import com.mnvstudio.x11.ui.SecondaryButton
+import com.mnvstudio.x11.ui.ShapeL
 
 /** Full-screen view of the X display, with a floating menu and an optional extra-keys bar. */
 @Composable
-fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
+fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
     val context = LocalContext.current
     val activity = context as Activity
     val server = XHolder.server
@@ -139,6 +140,16 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit) {
                 },
                 onRelease = { it.server = null },
             )
+            // An empty screen otherwise looks broken: say so and offer the apps.
+            if (XHolder.clients == 0) {
+                Column(Modifier.align(Alignment.Center).padding(24.dp).clip(ShapeL).background(Color(0xCC141826)).padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("No apps connected yet", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Open an app from Linux apps, or run one with DISPLAY=:${XHolder.display}", color = Label, fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+                    PrimaryButton("Open Linux apps", Modifier.widthIn(min = 220.dp)) { onApps() }
+                }
+            }
             // Floating menu button.
             Box(Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopEnd)) {
                 Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0x99141826)).border(1.dp, Color(0x55FFFFFF), CircleShape)
