@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
     }
 
     // Android only lets apps read the clipboard while focused, so offer it to Linux apps whenever we gain focus.
-    private val clipListener = android.content.ClipboardManager.OnPrimaryClipChangedListener { XHolder.pushClipboard(this) }
+    private val clipListener = android.content.ClipboardManager.OnPrimaryClipChangedListener { if (prefs.clipboardSync) XHolder.pushClipboard(this) }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
