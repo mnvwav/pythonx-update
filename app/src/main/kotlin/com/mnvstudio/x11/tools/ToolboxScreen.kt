@@ -1,5 +1,6 @@
 package com.mnvstudio.x11.tools
 
+import com.mnvstudio.x11.ui.ambient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,17 +50,18 @@ fun ToolboxScreen(prefs: Prefs, navigate: (String) -> Unit, back: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
     val tools = Tools.all(prefs).filter { it.matches(query) }
-    Column(Modifier.fillMaxSize().background(Page)) {
+    Column(Modifier.fillMaxSize().background(Page).ambient()) {
         TopBar("Toolbox", "${Tools.all(prefs).size} tools", onBack = back) { RoundIcon(Icons.Filled.Add, "Add your own tool") { adding = true } }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 720.dp)) {
                 OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), placeholder = { Text("Search tools") }, singleLine = true,
                     leadingIcon = { Icon(Icons.Filled.Search, null) }, shape = CircleShape)
                 val groups = tools.groupBy { it.category }
+                var n = 0
                 Tools.CATEGORY_ORDER.filter { it in groups }.forEach { cat ->
                     SectionTitle(cat)
                     groups.getValue(cat).chunked(2).forEach { row ->
-                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).enter(n++, 30), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             row.forEach { t -> ToolCard(t, Modifier.weight(1f)) { navigate(t.route ?: "tool?${t.id}") } }
                             if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
@@ -75,7 +77,7 @@ fun ToolboxScreen(prefs: Prefs, navigate: (String) -> Unit, back: () -> Unit) {
 
 @Composable
 private fun ToolCard(t: ToolDef, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier.heightIn(min = 112.dp).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM).clickable(onClick = onClick).padding(14.dp)) {
+    Column(modifier.heightIn(min = 112.dp).pressable(onClick = onClick).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM).padding(14.dp)) {
         Box(Modifier.size(36.dp).clip(ShapeS).background(Brush.linearGradient(com.mnvstudio.x11.ui.categoryGradient(categoryColorKey(t.category)))),
             contentAlignment = Alignment.Center) { Icon(t.icon, null, tint = com.mnvstudio.x11.ui.TileIcon, modifier = Modifier.size(20.dp)) }
         Text(t.name, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))

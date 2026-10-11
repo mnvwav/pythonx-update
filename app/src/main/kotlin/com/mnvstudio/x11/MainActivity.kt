@@ -10,6 +10,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -210,9 +218,21 @@ class MainActivity : ComponentActivity() {
             return
         }
         val pushed = stack.lastOrNull()
-        AnimatedContent(pushed ?: "tab:$tab", transitionSpec = {
-            (fadeIn(tween(180)) + slideInHorizontally(tween(220)) { it / 12 }) togetherWith fadeOut(tween(120))
-        }, label = "route") { route ->
+        // Depth-aware transitions: pushing slides the new screen in from the right while the old one sinks back;
+        // going back reverses it. Switching tabs is a soft crossfade with a hint of scale.
+        val depth = stack.size
+        AnimatedContent(Pair(pushed ?: "tab:$tab", depth), transitionSpec = {
+            val forward = targetState.second > initialState.second
+            val backward = targetState.second < initialState.second
+            val ease = com.mnvstudio.x11.ui.EaseOutExpo
+            when {
+                forward -> (slideInHorizontally(tween(420, easing = ease)) { it / 3 } + fadeIn(tween(260)) + scaleIn(tween(420, easing = ease), 0.96f)) togetherWith
+                    (fadeOut(tween(220)) + scaleOut(tween(420, easing = ease), 0.94f))
+                backward -> (fadeIn(tween(260)) + scaleIn(tween(420, easing = ease), 0.94f)) togetherWith
+                    (slideOutHorizontally(tween(360, easing = ease)) { it / 3 } + fadeOut(tween(220)) + scaleOut(tween(360, easing = ease), 0.96f))
+                else -> (fadeIn(tween(240)) + scaleIn(tween(320, easing = ease), 0.985f)) togetherWith fadeOut(tween(160))
+            }
+        }, contentKey = { it.first }, label = "route") { (route, _) ->
             if (route.startsWith("tab:")) Tabs(route.removePrefix("tab:"), go) { t -> tab = t }
             else Box(Modifier.fillMaxSize().background(Page).then(if (route == "display") Modifier else Modifier.systemBarsPadding())) {
                 Pushed(route, go, back)
@@ -236,7 +256,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (rail) Row(Modifier.fillMaxSize().systemBarsPadding()) {
-                NavigationRail(containerColor = Card, header = { Logo(40.dp, Modifier.padding(vertical = 12.dp)) }) {
+                NavigationRail(containerColor = Card, header = { com.mnvstudio.x11.ui.LiveMark(44.dp, Modifier.padding(vertical = 12.dp)) }) {
                     Spacer(Modifier.weight(1f))
                     NAV.forEach { (id, label, icon) ->
                         NavigationRailItem(tab == id, { select(id) }, icon = { Icon(icon, null) }, label = { Text(label) },
@@ -245,14 +265,12 @@ class MainActivity : ComponentActivity() {
                     Spacer(Modifier.weight(1f))
                 }
                 content(Modifier.weight(1f).fillMaxSize())
-            } else Column(Modifier.fillMaxSize()) {
-                content(Modifier.weight(1f).fillMaxWidth().statusBarsPadding())
-                NavigationBar(containerColor = Card, tonalElevation = 0.dp) {
-                    NAV.forEach { (id, label, icon) ->
-                        NavigationBarItem(tab == id, { select(id) }, icon = { Icon(icon, null) }, label = { Text(label, fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(selectedIconColor = OnAccent, indicatorColor = Accent, unselectedIconColor = Label, unselectedTextColor = Label, selectedTextColor = Ink))
-                    }
-                }
+            } else Box(Modifier.fillMaxSize()) {
+                // Room for the floating bar so the last items stay reachable; a short fade blends content into it.
+                content(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(bottom = 64.dp))
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(96.dp)
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Page.copy(alpha = 0.92f)))))
+                com.mnvstudio.x11.ui.FloatingNavBar(NAV, tab, select, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
             }
         }
     }

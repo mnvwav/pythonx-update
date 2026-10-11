@@ -76,7 +76,8 @@ import com.mnvstudio.x11.ui.Card
 import com.mnvstudio.x11.ui.CardHigh
 import com.mnvstudio.x11.ui.Faint
 import com.mnvstudio.x11.ui.Gauge
-import com.mnvstudio.x11.ui.HeaderGlow
+import com.mnvstudio.x11.ui.enter
+import com.mnvstudio.x11.ui.pressable
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
 import com.mnvstudio.x11.ui.Line
@@ -110,14 +111,16 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
     val order = prefs.dashboard.split(',').filter { it in WIDGET_NAMES }.let { o -> o + WIDGET_NAMES.keys.filter { it !in o } }
 
     Box(Modifier.fillMaxSize().background(Page)) {
-        Box(Modifier.fillMaxWidth().height(240.dp).background(HeaderGlow))
+        com.mnvstudio.x11.ui.AmbientBackground()
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 720.dp).animateContentSize()) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Logo(44.dp)
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("X11", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text("Linux apps on your phone", color = Label, fontSize = 12.sp)
+                    com.mnvstudio.x11.ui.LiveMark(48.dp)
+                    Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                        val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+                        Text(when (hour) { in 5..11 -> "Good morning"; in 12..16 -> "Good afternoon"; in 17..21 -> "Good evening"; else -> "Late night hacking" },
+                            color = Label, fontSize = 12.sp)
+                        Text("X11", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     }
                     RoundIcon(Icons.Filled.Dashboard, if (editing) "Done customizing" else "Customize dashboard", tint = if (editing) Accent else Ink) { editing = !editing }
                     Spacer(Modifier.width(8.dp))
@@ -131,15 +134,15 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
                     SectionTitle("Customize dashboard")
                     order.forEachIndexed { i, id -> EditRow(prefs, order, i, id) }
                     Text("Done", color = Accent, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(12.dp).clickable { editing = false })
-                } else order.filter { it !in prefs.dashboardHidden }.forEach { id ->
-                    when (id) {
+                } else order.filter { it !in prefs.dashboardHidden }.forEachIndexed { i, id ->
+                    Box(Modifier.enter(i, 70)) { when (id) {
                         "status" -> StatusWidget(prefs, navigate)
                         "resources" -> ResourcesWidget(navigate)
                         "running" -> RunningWidget(navigate)
                         "favorites" -> FavoritesWidget(prefs, navigate)
                         "sessions" -> SessionsWidget(prefs, navigate)
                         "tools" -> ToolsWidget(navigate)
-                    }
+                    } }
                 }
                 Spacer(Modifier.height(28.dp))
             }
@@ -299,7 +302,7 @@ private fun FavoritesWidget(prefs: Prefs, navigate: (String) -> Unit) {
 
 @Composable
 private fun AppChip(prefs: Prefs, app: LinuxApp, onClick: () -> Unit) {
-    Column(Modifier.width(88.dp).clip(ShapeM).background(CardHigh).clickable(role = Role.Button, onClick = onClick).padding(vertical = 12.dp),
+    Column(Modifier.width(88.dp).pressable(onClick = onClick).clip(ShapeM).background(CardHigh).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
         com.mnvstudio.x11.ui.AppIcon(app, 44.dp)
         Text(app.name, color = Ink, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 6.dp))

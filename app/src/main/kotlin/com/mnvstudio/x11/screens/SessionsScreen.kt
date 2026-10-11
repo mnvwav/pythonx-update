@@ -1,5 +1,6 @@
 package com.mnvstudio.x11.screens
 
+import com.mnvstudio.x11.ui.ambient
 import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -106,7 +107,7 @@ fun SessionsScreen(prefs: Prefs, navigate: (String) -> Unit) {
         if (problems.isEmpty()) Toast.makeText(context, "Session imported", Toast.LENGTH_SHORT).show() else importErrors = problems
     }
 
-    Column(Modifier.fillMaxSize().background(Page)) {
+    Column(Modifier.fillMaxSize().background(Page).ambient()) {
         TopBar("Sessions", "Saved setups you can launch in one tap") {
             RoundIcon(Icons.Filled.ContentPaste, "Import session from clipboard") { paste() }
             RoundIcon(Icons.Filled.Add, "New session") {

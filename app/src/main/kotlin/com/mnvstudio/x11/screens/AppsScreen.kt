@@ -1,5 +1,8 @@
 package com.mnvstudio.x11.screens
 
+import com.mnvstudio.x11.ui.ambient
+import com.mnvstudio.x11.ui.enter
+import com.mnvstudio.x11.ui.pressable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -133,7 +136,7 @@ fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: (() -> Unit)? =
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Page)) {
+    Column(Modifier.fillMaxSize().background(Page).ambient()) {
         TopBar("Linux apps", "Built-in Alpine Linux", onBack = onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 640.dp)) {
@@ -217,16 +220,16 @@ private fun CatalogTab(prefs: Prefs, busy: String?, onOpen: (LinuxApp) -> Unit, 
         "Recent" -> "Apps you open appear here."
         else -> "No apps match."
     }, color = Label, fontSize = 14.sp, modifier = Modifier.padding(top = 16.dp))
-    shown.groupBy { it.category }.forEach { (category, apps) ->
+    shown.groupBy { it.category }.entries.forEachIndexed { gi, (category, apps) ->
         SectionTitle(category)
-        Column(Modifier.fillMaxWidth().clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)) {
+        Column(Modifier.fillMaxWidth().enter(gi, 60).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)) {
             apps.forEachIndexed { i, app ->
                 val installed = remember(Linux.revision) { Linux.isInstalled(context, app) }
                 val working = busy == app.name
                 val fav = app.id in prefs.favorites
                 var menu by remember { mutableStateOf(false) }
                 Row(
-                    Modifier.fillMaxWidth().clickable(enabled = busy == null, role = Role.Button) { if (installed) onOpen(app) else onInstall(app) }
+                    Modifier.fillMaxWidth().pressable(enabled = busy == null, scaleTo = 0.985f) { if (installed) onOpen(app) else onInstall(app) }
                         .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

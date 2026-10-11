@@ -1,5 +1,10 @@
 package com.mnvstudio.x11.screens
 
+import com.mnvstudio.x11.ui.ambient
+import com.mnvstudio.x11.ui.enter
+import com.mnvstudio.x11.ui.pressable
+import com.mnvstudio.x11.ui.OnAccent
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -100,7 +105,7 @@ private val TOOLS = listOf(
 fun LinuxScreen(prefs: Prefs, navigate: (String) -> Unit) {
     val context = LocalContext.current
     LaunchedEffect(Unit) { Linux.check(context) }
-    Column(Modifier.fillMaxSize().background(Page)) {
+    Column(Modifier.fillMaxSize().background(Page).ambient()) {
         TopBar("Linux", when (Linux.state) {
             Linux.State.READY -> "Alpine Linux · ${Linux.activeProfileName(context)}"
             Linux.State.INSTALLING -> "Setting up…"
@@ -109,10 +114,11 @@ fun LinuxScreen(prefs: Prefs, navigate: (String) -> Unit) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 680.dp)) {
                 if (Linux.state != Linux.State.READY) SetupCard()
+                var n = 0
                 TOOLS.forEach { (section, tools) ->
                     SectionTitle(section)
                     tools.chunked(2).forEach { row ->
-                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).enter(n++), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             row.forEach { t -> ToolTile(t, Modifier.weight(1f)) { navigate(t.route) } }
                             if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
@@ -126,8 +132,8 @@ fun LinuxScreen(prefs: Prefs, navigate: (String) -> Unit) {
 
 @Composable
 private fun ToolTile(t: Tool, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier.clip(ShapeL).background(Card).border(1.dp, Line, ShapeL).clickable(role = Role.Button, onClick = onClick).padding(16.dp)) {
-        Box(Modifier.size(40.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) { Icon(t.icon, null, tint = Accent) }
+    Column(modifier.pressable(onClick = onClick).clip(ShapeL).background(Card).border(1.dp, Line, ShapeL).padding(16.dp)) {
+        Box(Modifier.size(40.dp).clip(ShapeM).background(com.mnvstudio.x11.ui.accentGradient()), contentAlignment = Alignment.Center) { Icon(t.icon, null, tint = OnAccent) }
         Text(t.title, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
         Text(t.body, color = Label, fontSize = 12.sp, lineHeight = 16.sp)
     }

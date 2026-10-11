@@ -163,7 +163,7 @@ fun SettingsScreen(prefs: Prefs, navigate: (String) -> Unit, onReplayOnboarding:
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Page)) {
+    Box(Modifier.fillMaxSize().background(Page).ambient(0.5f)) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= 840.dp
             val section = open
@@ -213,7 +213,7 @@ fun SettingsScreen(prefs: Prefs, navigate: (String) -> Unit, onReplayOnboarding:
                                         val info = SECTION_INFO[sec]
                                         if (i > 0) HorizontalDivider(color = Line, modifier = Modifier.padding(start = 70.dp))
                                         Row(Modifier.fillMaxWidth().background(if (wide && section == sec) AccentSoft else Color.Transparent)
-                                            .clickable { open = sec }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            .pressable(scaleTo = 0.985f) { open = sec }.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                             if (info != null) GradientTile(info.icon, info.colors, 40.dp)
                                             Column(Modifier.weight(1f).padding(start = 14.dp)) {
                                                 Text(sec, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
