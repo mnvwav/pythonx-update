@@ -216,7 +216,7 @@ object Linux {
             if (job != null) {
                 val out = synchronized(tail) { tail.joinToString("\n") }
                 AppLog.i("${job.name} exited with code $code" + if (out.isNotEmpty()) ": " + out.replace("\n", " | ") else "")
-                if (code != 0) ui { lastFailure = "${job.name} closed (exit $code)" + if (out.isNotEmpty()) "\n$out" else "" }
+                ui { lastFailure = "${job.name} closed (exit $code)" + (if (code == 0) " without opening a window" else "") + if (out.isNotEmpty()) "\n$out" else "" }
             }
             ui { if (job != null) jobs -= job; onExit(code) }
         }.start()
@@ -331,7 +331,7 @@ object Linux {
         val app = context.applicationContext
         val prefs = Prefs.of(app)
         val checks = mutableListOf(Check("proot is bundled"), Check("Linux files present"), Check("Shell runs"),
-            Check("Internet from Linux"), Check("Package index (apk update)"))
+            Check("Internet from Linux"), Check("Package index (apk update)"), Check("X display reachable from Linux"), Check("Test app opens a window"))
         fun set(i: Int, ok: Boolean, detail: String = "") {
             checks[i] = checks[i].copy(ok = ok, detail = detail)
             if (!ok) AppLog.e("Diagnostics: ${checks[i].name}: $detail")
@@ -350,10 +350,28 @@ object Linux {
         prepare(rootfs(app))
         set(1, true, "DNS settings refreshed")
 
+        // Can Linux apps reach the X server, and does a real app survive on it?
+        fun display() {
+            if (!com.mnvstudio.x11.XHolder.ensureStarted(app)) { set(5, false, com.mnvstudio.x11.XHolder.error ?: "The X server didn't start"); finish(); return }
+            val d = com.mnvstudio.x11.XHolder.display
+            capture(app, "nc -z -w 3 127.0.0.1 ${6000 + d} && echo reachable") { _, out ->
+                if (out.none { it.trim() == "reachable" }) { set(5, false, "Port ${6000 + d} not reachable: " + out.joinToString(" · ")); finish(); return@capture }
+                set(5, true, "DISPLAY=127.0.0.1:$d")
+                capture(app, "command -v xterm >/dev/null || { echo 'xterm not installed: install Terminal first'; exit 2; }; " +
+                    "DISPLAY=127.0.0.1:$d timeout 5 xterm -fn 9x15 -e 'sleep 30' 2>&1; echo \"exit \$?\"") { _, o ->
+                    val code = o.lastOrNull { it.startsWith("exit ") }?.removePrefix("exit ")?.trim()?.toIntOrNull() ?: -1
+                    // timeout kills a running xterm (124/143): that means the window stayed open.
+                    if (code == 124 || code == 143) set(6, true, "xterm ran for 5 s on :$d")
+                    else set(6, false, o.takeLast(6).joinToString(" · ").ifEmpty { "exit $code" })
+                    finish()
+                }
+            }
+        }
+
         // Repair ladder for apk: as is, then plain-HTTP mirrors, then proot's compatibility mode.
         fun apkUpdate(stage: Int) {
             capture(app, "apk update 2>&1") { code, out ->
-                if (code == 0) { set(4, true, out.lastOrNull { it.contains("OK") || it.contains("distinct") } ?: "OK"); finish(); return@capture }
+                if (code == 0) { set(4, true, out.lastOrNull { it.contains("OK") || it.contains("distinct") } ?: "OK"); display(); return@capture }
                 AppLog.e("apk update failed (stage $stage): " + out.takeLast(4).joinToString(" | "))
                 when {
                     stage == 0 -> {
