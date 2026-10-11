@@ -34,6 +34,7 @@ val VioletDeep = Color(0xFF5B3FE0)
 val Cyan = Color(0xFF2DD4EE)
 val Good = Color(0xFF4ADE9A)
 val Bad = Color(0xFFFF6B81)
+val Warnish = Color(0xFFFFB454)
 val CodeBg = Color(0xFF080A11)
 
 val BrandGradient = Brush.linearGradient(listOf(Violet, Cyan))
