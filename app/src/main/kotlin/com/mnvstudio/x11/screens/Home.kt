@@ -1,5 +1,17 @@
 package com.mnvstudio.x11.screens
 
+import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.CircularProgressIndicator
+import com.mnvstudio.x11.ui.Mono
+import com.mnvstudio.x11.ui.OnAccent
+
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -98,7 +110,7 @@ import com.mnvstudio.x11.ui.StatusDot
 import com.mnvstudio.x11.ui.Warn
 
 private val WIDGET_NAMES = mapOf(
-    "status" to "Display status", "resources" to "CPU, memory & storage", "running" to "Running apps",
+    "status" to "Display status", "superpowers" to "Superpowers", "resources" to "CPU, memory & storage", "running" to "Running apps",
     "favorites" to "Favorites & recent", "sessions" to "Sessions", "tools" to "Shortcuts",
 )
 
@@ -108,7 +120,12 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
     LaunchedEffect(Unit) { Linux.check(context) }
     DisposableEffect(Unit) { Metrics.start(context); onDispose { Metrics.stop() } }
     var editing by rememberSaveable { mutableStateOf(false) }
-    val order = prefs.dashboard.split(',').filter { it in WIDGET_NAMES }.let { o -> o + WIDGET_NAMES.keys.filter { it !in o } }
+    // New widgets appear right after the status card the first time, not at the bottom.
+    val order = prefs.dashboard.split(',').filter { it in WIDGET_NAMES }.let { o ->
+        val missing = WIDGET_NAMES.keys.filter { it !in o }
+        val at = o.indexOf("status") + 1
+        o.take(at) + missing + o.drop(at)
+    }
 
     Box(Modifier.fillMaxSize().background(Page)) {
         com.mnvstudio.x11.ui.AmbientBackground()
@@ -137,6 +154,7 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
                 } else order.filter { it !in prefs.dashboardHidden }.forEachIndexed { i, id ->
                     Box(Modifier.enter(i, 70)) { when (id) {
                         "status" -> StatusWidget(prefs, navigate)
+                        "superpowers" -> SuperpowersWidget(navigate)
                         "resources" -> ResourcesWidget(navigate)
                         "running" -> RunningWidget(navigate)
                         "favorites" -> FavoritesWidget(prefs, navigate)
@@ -380,3 +398,89 @@ fun NavCard(icon: ImageVector, title: String, body: String, onClick: () -> Unit)
     }
 }
 
+
+
+/**
+ * What makes this more than an X server: a full desktop in one tap, the phone's files inside Linux, and Linux
+ * programs that can reach the phone (notifications, links, clipboard, speech…).
+ */
+@Composable
+private fun SuperpowersWidget(navigate: (String) -> Unit) {
+    val context = LocalContext.current
+    val activity = context as? android.app.Activity
+    val xfce = remember { com.mnvstudio.x11.linux.Catalog.byId("xfce4") }
+    var desktopInstalled by remember(Linux.revision) { mutableStateOf(xfce != null && Linux.isInstalled(context, xfce)) }
+    var installing by remember { mutableStateOf<String?>(null) }
+    var phone by remember { mutableStateOf(com.mnvstudio.x11.bridge.PhoneStorage.granted(context)) }
+    // Re-check while visible (e.g. after returning from Android's permission page).
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(1500); phone = com.mnvstudio.x11.bridge.PhoneStorage.granted(context) } }
+    var demo by remember { mutableStateOf(false) }
+    val ready = Linux.state == Linux.State.READY
+
+    WidgetCard {
+        Text("Superpowers", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        Text("Things a phone shouldn't be able to do.", color = Label, fontSize = 12.sp)
+        Spacer(Modifier.height(12.dp))
+        Power(Icons.Filled.DesktopWindows, "Full Linux desktop",
+            when { installing != null -> installing!!; desktopInstalled -> "XFCE with panel, menu and file manager · tap to open"; else -> "One tap installs XFCE (about 150 MB) and opens it" },
+            busy = installing != null, enabled = ready) {
+            if (xfce == null) return@Power
+            if (desktopInstalled) { if (com.mnvstudio.x11.Launcher.open(context, xfce)) navigate("display") }
+            else {
+                installing = "Installing… this takes a few minutes"
+                Linux.installPackages(context, xfce.packages, onOutput = { l -> if (l.startsWith("(")) installing = l.take(60) }) { ok ->
+                    installing = null; desktopInstalled = ok
+                    if (ok && com.mnvstudio.x11.Launcher.open(context, xfce)) navigate("display")
+                    else if (!ok) android.widget.Toast.makeText(context, "Install failed: see Diagnostics → Log", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        Power(Icons.Filled.PhoneAndroid, "Phone files in Linux",
+            if (phone) "Your Downloads, photos and documents are at ~/Phone" else "Let Linux apps open and save files on your phone",
+            on = phone) { if (!phone && activity != null) com.mnvstudio.x11.bridge.PhoneStorage.request(activity) }
+        Power(Icons.Filled.NotificationsActive, "Linux talks to your phone",
+            "notify-send, links, clipboard, vibration and speech reach Android · tap to try", enabled = ready) { demo = true }
+    }
+    if (demo) AlertDialog(onDismissRequest = { demo = false }, containerColor = Card,
+        title = { Text("Linux → Android", color = Ink) },
+        text = {
+            Column {
+                Text("Linux programs (and you, in the terminal) can use the phone with the android command. Try one:", color = Label, fontSize = 13.sp)
+                listOf(
+                    "Notification" to "notify-send 'Hello from Linux' 'This came from Alpine'",
+                    "Vibrate" to "android vibrate 400",
+                    "Speak" to "android say 'Linux is running on my phone'",
+                    "Open a link" to "xdg-open https://alpinelinux.org",
+                    "Battery" to "android battery && android toast \"$(android battery | head -1)\"",
+                ).forEach { (label, cmd) ->
+                    Row(Modifier.fillMaxWidth().padding(top = 10.dp).clip(ShapeM).background(CardHigh)
+                        .clickable { Linux.run(context, cmd, XHolder.display) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(label, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text(cmd, color = Faint, fontSize = 11.sp, fontFamily = Mono, maxLines = 1)
+                        }
+                        Icon(Icons.Filled.PlayArrow, "Run", tint = Accent)
+                    }
+                }
+                Text("More: android help", color = Faint, fontSize = 12.sp, fontFamily = Mono, modifier = Modifier.padding(top = 10.dp))
+            }
+        },
+        confirmButton = { TextButton({ demo = false }) { Text("Done") } })
+}
+
+@Composable
+private fun Power(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String, on: Boolean = false, busy: Boolean = false,
+                  enabled: Boolean = true, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).pressable(enabled = enabled && !busy, scaleTo = 0.98f, onClick = onClick).clip(ShapeM)
+        .background(CardHigh).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(40.dp).clip(ShapeM).background(com.mnvstudio.x11.ui.accentGradient()), contentAlignment = Alignment.Center) {
+            if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = OnAccent, strokeWidth = 2.dp)
+            else Icon(icon, null, tint = OnAccent, modifier = Modifier.size(22.dp))
+        }
+        Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            Text(title, color = if (enabled) Ink else Faint, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(body, color = Label, fontSize = 12.sp, lineHeight = 16.sp)
+        }
+        if (on) Icon(Icons.Filled.CheckCircle, "On", tint = Live) else Icon(Icons.Filled.ChevronRight, null, tint = Faint)
+    }
+}

@@ -72,6 +72,8 @@ class Prefs private constructor(context: Context) {
     var smoothScaling by pref("smooth", true)
     /** "auto", "landscape" or "portrait" while the display is open. */
     var orientation by pref("orientation", "landscape")
+    /** Float the display in picture-in-picture when leaving the app with Linux apps open. */
+    var autoPip by pref("autoPip", true)
     var drawInCutout by pref("cutout", false)
     var keepScreenOn by pref("keepScreenOn", true)
     var perfOverlay by pref("perfOverlay", false)

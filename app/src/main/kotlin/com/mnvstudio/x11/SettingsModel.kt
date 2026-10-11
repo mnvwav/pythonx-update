@@ -53,6 +53,8 @@ object SettingsModel {
         SettingItem("maxFps", "Display", "Frame rate limit", "", Kind.CHOICE, options = listOf("30" to "30 fps", "60" to "60 fps", "120" to "120 fps"), keywords = "fps refresh battery"),
         SettingItem("smooth", "Display", "Smooth scaling", "Filter the picture when it's scaled", Kind.TOGGLE),
         SettingItem("cutout", "Display", "Use the notch area", "Draw behind the camera cutout", Kind.TOGGLE, advanced = true),
+        SettingItem("autoPip", "Display", "Float when leaving", "Keep Linux apps running in a small window over other apps (picture-in-picture)", Kind.TOGGLE,
+            keywords = "pip picture in picture floating window multitask"),
         SettingItem("keepScreenOn", "Display", "Keep screen on", "While the display is open", Kind.TOGGLE),
         SettingItem("perfOverlay", "Display", "Performance overlay", "Frames per second on the display", Kind.TOGGLE, advanced = true),
         SettingItem("display", "Display", "Display number", "DISPLAY=:N for apps", Kind.CHOICE, advanced = true, needsRestart = true,

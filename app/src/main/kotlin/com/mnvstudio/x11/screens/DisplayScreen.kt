@@ -43,6 +43,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -144,6 +145,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
         }
     }
     var mouseLocked by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { com.mnvstudio.x11.Pip.displayOpen = true; onDispose { com.mnvstudio.x11.Pip.displayOpen = false } }
 
     Column(Modifier.fillMaxSize().background(Color.Black).imePadding()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
@@ -200,13 +202,13 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                 }
             }
             if (switcher) WindowSwitcher(onDone = { switcher = false }, Modifier.align(Alignment.Center).padding(20.dp))
-            if (prefs.perfOverlay) {
+            if (prefs.perfOverlay && !com.mnvstudio.x11.Pip.active) {
                 Text("$fps fps · ${server.width}×${server.height} · ${XHolder.clients} apps", color = Color.White, fontFamily = Mono, fontSize = 11.sp,
                     modifier = Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopStart).clip(CircleShape)
                         .background(Color(0x99000000)).padding(horizontal = 10.dp, vertical = 4.dp))
             }
-            // Floating menu button.
-            Box(Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopEnd)) {
+            // Floating menu button (hidden in picture-in-picture, where only the picture shows).
+            if (!com.mnvstudio.x11.Pip.active) Box(Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopEnd)) {
                 Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0x99161619)).border(1.dp, Color(0x55FFFFFF), CircleShape)
                     .clickable { menu = true }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Menu, "Display menu", tint = Color.White, modifier = Modifier.size(20.dp))
@@ -219,6 +221,11 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                         prefs.touchMode = if (prefs.touchMode == Prefs.MODE_DIRECT) Prefs.MODE_TOUCHPAD else Prefs.MODE_DIRECT
                     }
                     MenuItem(Icons.Filled.Window, "Windows & desktops") { menu = false; switcher = true }
+                    MenuItem(Icons.Filled.PictureInPictureAlt, "Float over other apps") {
+                        menu = false
+                        val a = context as? android.app.Activity
+                        if (a == null || !com.mnvstudio.x11.Pip.enter(a)) Toast.makeText(context, "Picture-in-picture isn't available on this phone", Toast.LENGTH_SHORT).show()
+                    }
                     MenuItem(Icons.Filled.Mouse, if (mouseLocked) "Release mouse" else "Lock mouse") {
                         menu = false; mouseLocked = !mouseLocked; view?.capturePointer(mouseLocked)
                     }
@@ -236,7 +243,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                 }
             }
         }
-        if (prefs.extraKeys) {
+        if (prefs.extraKeys && !com.mnvstudio.x11.Pip.active) {
             Box(Modifier.navigationBarsPadding()) {
                 ExtraKeysBar(com.mnvstudio.x11.display.AppProfiles.get(prefs, appClass)["keys"] ?: prefs.keyLayout, sticky, view = { view }, onKeyboard = { showKeyboard() }, onRightClick = { server.click(3) })
             }

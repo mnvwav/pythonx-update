@@ -152,6 +152,17 @@ class MainActivity : ComponentActivity() {
         if (hasFocus && prefs.clipboardSync) XHolder.pushClipboard(this)
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Home button or app switch while the display is open: keep it floating (Settings → Display).
+        if (Pip.displayOpen && prefs.autoPip && XHolder.clients > 0) Pip.enter(this)
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        Pip.active = isInPictureInPictureMode
+    }
+
     override fun onResume() {
         super.onResume()
         getSystemService(ClipboardManager::class.java).addPrimaryClipChangedListener(clipListener)
