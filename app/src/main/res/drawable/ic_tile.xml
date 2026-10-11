@@ -1,18 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Quick Settings tile icon. Same geometry as drawToolMark() in ui/Components.kt: a window with an X inside. -->
+<!-- Quick Settings tile icon. Same geometry as drawToolMark() in ui/Components.kt: an X with a mouse pointer. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M4.74,4.52H19.26A1.98,1.98 0,0 1,21.24,6.50V17.50A1.98,1.98 0,0 1,19.26,19.48H4.74A1.98,1.98 0,0 1,2.76,17.50V6.50A1.98,1.98 0,0 1,4.74,4.52ZM4.96,7.82H19.04A0.88,0.88 0,0 1,19.92,8.70V17.28A0.88,0.88 0,0 1,19.04,18.16H4.96A0.88,0.88 0,0 1,4.08,17.28V8.70A0.88,0.88 0,0 1,4.96,7.82Z" />
-    <group android:rotation="45" android:pivotX="12.00" android:pivotY="12.99">
-        <path android:fillColor="#FFFFFFFF" android:pathData="M13.04,11.95H15.79A1.04,1.04 0,0 1,16.84,12.99V12.99A1.04,1.04 0,0 1,15.79,14.04H13.04A1.04,1.04 0,0 1,12.00,12.99V12.99A1.04,1.04 0,0 1,13.04,11.95Z" />
-    </group>
-    <group android:rotation="135" android:pivotX="12.00" android:pivotY="12.99">
-        <path android:fillColor="#FFFFFFFF" android:pathData="M13.04,11.95H15.79A1.04,1.04 0,0 1,16.84,12.99V12.99A1.04,1.04 0,0 1,15.79,14.04H13.04A1.04,1.04 0,0 1,12.00,12.99V12.99A1.04,1.04 0,0 1,13.04,11.95Z" />
-    </group>
-    <group android:rotation="225" android:pivotX="12.00" android:pivotY="12.99">
-        <path android:fillColor="#FFFFFFFF" android:pathData="M13.04,11.95H15.79A1.04,1.04 0,0 1,16.84,12.99V12.99A1.04,1.04 0,0 1,15.79,14.04H13.04A1.04,1.04 0,0 1,12.00,12.99V12.99A1.04,1.04 0,0 1,13.04,11.95Z" />
-    </group>
-    <group android:rotation="315" android:pivotX="12.00" android:pivotY="12.99">
-        <path android:fillColor="#FFFFFFFF" android:pathData="M13.04,11.95H15.79A1.04,1.04 0,0 1,16.84,12.99V12.99A1.04,1.04 0,0 1,15.79,14.04H13.04A1.04,1.04 0,0 1,12.00,12.99V12.99A1.04,1.04 0,0 1,13.04,11.95Z" />
-    </group>
+    android:width="24dp" android:height="24dp" android:viewportWidth="64" android:viewportHeight="64">
+<group android:scaleX="1" android:scaleY="1" android:translateX="-23" android:translateY="-24">
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="11" android:strokeLineCap="round" android:pathData="M70,34L36,72" />
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="11" android:strokeLineCap="round" android:pathData="M36,34L70,72" />
+    <path android:fillColor="#FFFFFFFF" android:strokeColor="#00000000" android:pathData="M64,60L64,84L70,78L74.5,87L79,85L74.5,76L82.5,76Z" />
+</group>
 </vector>

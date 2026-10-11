@@ -83,37 +83,49 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 
 // ---------------------------------------------------------------- brand
 
+/** Brand gradient behind the mark (launcher icon background, logo tile). */
+val BrandGradient = listOf(Color(0xFF5B8CFF), Color(0xFF7C4DFF))
+
 /**
- * The X11 mark: a window (thick title bar) with an X inside. Geometry is in a unit square so the launcher icons
- * (res/drawable/ic_launcher_foreground.xml and friends) match it exactly. [split] (0..1) pushes the four X arms
- * outward for the opening animation, and [frame] is the window's opacity.
+ * The X11 mark: a rounded X (one stroke solid, one translucent) with a mouse pointer on it. Coordinates come from
+ * the 108-unit launcher icon (res/drawable/ic_launcher_foreground.xml), whose mark spans 24..84; that region is
+ * fitted to this canvas. [split] (0..1) pushes the X's four arms outward and fades the pointer, for the splash.
  */
-fun DrawScope.drawToolMark(color: Color, split: Float = 0f, frame: Float = 1f) {
-    val s = size.minDimension
-    val c = Offset(size.width / 2, size.height / 2)
-    if (frame > 0f) {
-        val path = androidx.compose.ui.graphics.Path().apply {
-            fillType = androidx.compose.ui.graphics.PathFillType.EvenOdd
-            addRoundRect(androidx.compose.ui.geometry.RoundRect(c.x - 0.42f * s, c.y - 0.34f * s, c.x + 0.42f * s, c.y + 0.34f * s, CornerRadius(0.09f * s)))
-            addRoundRect(androidx.compose.ui.geometry.RoundRect(c.x - 0.36f * s, c.y - 0.19f * s, c.x + 0.36f * s, c.y + 0.28f * s, CornerRadius(0.04f * s)))
-        }
-        drawPath(path, color.copy(alpha = color.alpha * frame))
+fun DrawScope.drawToolMark(color: Color, split: Float = 0f, pointer: Boolean = true) {
+    val k = size.minDimension / 60f
+    val ox = (size.width - 60f * k) / 2 - 24f * k
+    val oy = (size.height - 60f * k) / 2 - 24f * k
+    fun p(x: Float, y: Float) = Offset(ox + x * k, oy + y * k)
+    val w = 11f * k
+    val cx = 53f; val cy = 53f
+    // Each stroke is drawn as two arms from the centre so the splash can pull them apart.
+    fun arm(x: Float, y: Float, alpha: Float) {
+        val dx = (x - cx) * split * 0.9f; val dy = (y - cy) * split * 0.9f
+        drawLine(color.copy(alpha = color.alpha * alpha), p(cx + dx, cy + dy), p(x + dx, y + dy), w, cap = androidx.compose.ui.graphics.StrokeCap.Round)
     }
-    // The X: four arms from its centre, so each can fly out on its own.
-    val x = Offset(c.x, c.y + 0.045f * s)
-    for (angle in listOf(45f, 135f, 225f, 315f)) rotate(angle, x) {
-        drawRoundRect(color, Offset(x.x + (0.0f + split * 0.5f) * s, x.y - 0.0475f * s), Size(0.22f * s, 0.095f * s), CornerRadius(0.0475f * s))
+    arm(70f, 34f, 0.55f); arm(36f, 72f, 0.55f)
+    arm(36f, 34f, 1f); arm(70f, 72f, 1f)
+    if (pointer && split < 1f) {
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(64f, 60f); lineTo(64f, 84f); lineTo(70f, 78f); lineTo(74.5f, 87f); lineTo(79f, 85f); lineTo(74.5f, 76f); lineTo(82.5f, 76f); close()
+            transform(androidx.compose.ui.graphics.Matrix().apply { translate(ox, oy); scale(k, k) })
+        }
+        val a = 1f - split
+        drawPath(path, color.copy(alpha = color.alpha * a))
+        drawPath(path, Color(0xFF3B2A99).copy(alpha = a), style = androidx.compose.ui.graphics.drawscope.Stroke(2.4f * k,
+            join = androidx.compose.ui.graphics.StrokeJoin.Round))
     }
 }
 
 @Composable
 fun Logo(size: Dp, modifier: Modifier = Modifier, framed: Boolean = true) {
     Box(
-        modifier.size(size).then(if (framed) Modifier.clip(RoundedCornerShape(size * 0.28f)).background(Color(0xFF111113)).border(1.dp, Line, RoundedCornerShape(size * 0.28f)) else Modifier)
+        modifier.size(size).then(if (framed) Modifier.clip(RoundedCornerShape(size * 0.28f))
+            .background(androidx.compose.ui.graphics.Brush.linearGradient(BrandGradient)) else Modifier)
             .semantics { contentDescription = "X11" },
     ) {
         Canvas(Modifier.size(size)) {
-            val o = if (framed) this.size.minDimension * 0.17f else 0f
+            val o = if (framed) this.size.minDimension * 0.16f else 0f
             inset(o) { drawToolMark(Color.White) }
         }
     }

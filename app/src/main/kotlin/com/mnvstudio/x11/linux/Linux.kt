@@ -256,10 +256,16 @@ object Linux {
     // ---------------------------------------------------------------- packages
 
     fun installPackages(context: Context, packages: List<String>, onOutput: (String) -> Unit, onDone: (Boolean) -> Unit) {
-        run(context, "apk update && apk add ${packages.joinToString(" ")}", 0, onOutput = onOutput) { code ->
+        val out = ArrayList<String>()
+        run(context, "apk update && apk add ${packages.joinToString(" ")}", 0, onOutput = { out += it; onOutput(it) }) { code ->
             revision++
             LinuxManager.logPackages(context, "add", packages, code == 0)
-            if (code != 0) AppLog.e("apk add ${packages.joinToString(" ")} failed ($code)")
+            if (code != 0) {
+                // Say why in plain words: the usual case is a package Alpine doesn't have under that name.
+                val missing = out.filter { "no such package" in it }.map { it.substringAfter("ERROR: ").substringBefore(" (").trim() }
+                if (missing.isNotEmpty()) onOutput("Not available in Alpine $ALPINE: ${missing.joinToString()}")
+                AppLog.e("apk add ${packages.joinToString(" ")} failed ($code): " + out.takeLast(4).joinToString(" | "))
+            }
             onDone(code == 0)
         }
     }
