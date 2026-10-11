@@ -275,9 +275,7 @@ private fun FavoritesWidget(prefs: Prefs, navigate: (String) -> Unit) {
 private fun AppChip(prefs: Prefs, app: LinuxApp, onClick: () -> Unit) {
     Column(Modifier.width(88.dp).clip(ShapeM).background(CardHigh).clickable(role = Role.Button, onClick = onClick).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(40.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) {
-            Icon(appIcon(app.id), null, tint = Accent, modifier = Modifier.size(22.dp))
-        }
+        com.mnvstudio.x11.ui.AppIcon(app, 44.dp)
         Text(app.name, color = Ink, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
         if (app.id in prefs.favorites) Text("★", color = Warn, fontSize = 10.sp)
     }

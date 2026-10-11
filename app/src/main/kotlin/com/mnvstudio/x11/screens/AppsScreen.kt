@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Brush
@@ -103,9 +104,11 @@ import com.mnvstudio.x11.ui.Warn
 fun appIcon(id: String): ImageVector = when (id) {
     "xterm" -> Icons.Filled.Terminal; "xcalc" -> Icons.Filled.Calculate; "xclock" -> Icons.Filled.Schedule
     "xeyes" -> Icons.Filled.Visibility; "xedit" -> Icons.Filled.Edit; "twm" -> Icons.Filled.Window
-    "xload" -> Icons.Filled.Insights; "xlogo" -> Icons.Filled.AutoAwesome; "xmag" -> Icons.Filled.ZoomIn; "xfontsel" -> Icons.Filled.TextFields
-    "htop" -> Icons.Filled.Monitor; "nano", "vim" -> Icons.Filled.Code; "python3" -> Icons.Filled.DataObject; "mc" -> Icons.Filled.FolderOpen
-    "xfce4", "lxqt" -> Icons.Filled.DesktopWindows; "firefox" -> Icons.Filled.Language; "gimp" -> Icons.Filled.Brush; else -> Icons.Filled.Apps
+    "xload" -> Icons.Filled.Insights; "htop" -> Icons.Filled.Monitor; "nano", "vim", "geany" -> Icons.Filled.Code
+    "python3" -> Icons.Filled.DataObject; "mc", "thunar", "pcmanfm" -> Icons.Filled.FolderOpen; "xfce4" -> Icons.Filled.DesktopWindows
+    "firefox", "netsurf", "dillo" -> Icons.Filled.Language; "gimp", "mtpaint" -> Icons.Filled.Brush; "ristretto" -> Icons.Filled.Image
+    "xfce4-terminal", "git" -> Icons.Filled.Terminal; "galculator" -> Icons.Filled.Calculate; "mousepad", "featherpad", "abiword" -> Icons.Filled.Edit
+    "gnumeric" -> Icons.Filled.TableChart; "xarchiver" -> Icons.Filled.Inventory2; "hexchat" -> Icons.Filled.Chat; else -> Icons.Filled.Apps
 }
 
 /** The built-in Linux: set it up, then install, open and manage apps and packages. */
@@ -223,22 +226,20 @@ private fun CatalogTab(prefs: Prefs, busy: String?, onOpen: (LinuxApp) -> Unit, 
                 val fav = app.id in prefs.favorites
                 var menu by remember { mutableStateOf(false) }
                 Row(
-                    Modifier.fillMaxWidth().clickable(enabled = busy == null && !app.needsExtensions, role = Role.Button) { if (installed) onOpen(app) else onInstall(app) }
+                    Modifier.fillMaxWidth().clickable(enabled = busy == null, role = Role.Button) { if (installed) onOpen(app) else onInstall(app) }
                         .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.size(42.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) {
-                        Icon(appIcon(app.id), null, tint = if (app.needsExtensions) Faint else Accent, modifier = Modifier.size(22.dp))
-                    }
+                    com.mnvstudio.x11.ui.AppIcon(app, 46.dp)
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(app.name, color = if (app.needsExtensions) Label else Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Text(app.name, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                             if (app.id in prefs.autostart) { Spacer(Modifier.size(8.dp)); Pill("autostart", Live) }
                         }
-                        Text(if (app.needsExtensions) "Needs X extensions coming in a future update" else app.description,
-                            color = if (app.needsExtensions) Faint else Label, fontSize = 12.sp)
+                        Text(if (app.experimental) "Experimental · " + app.description else app.description,
+                            color = Label, fontSize = 12.sp)
                     }
-                    if (!app.needsExtensions) Pill(when { working -> "Installing…"; installed -> "Open"; else -> "Install" }, if (installed) Live else Accent)
+                    Pill(when { working -> "Installing…"; installed -> "Open"; else -> "Install" }, if (installed) Live else Accent)
                     Box(Modifier.size(40.dp).clip(CircleShape).clickable { prefs.favorites = if (fav) prefs.favorites - app.id else prefs.favorites + app.id },
                         contentAlignment = Alignment.Center) {
                         Icon(if (fav) Icons.Filled.Star else Icons.Filled.StarBorder, if (fav) "Remove ${app.name} from favorites" else "Add ${app.name} to favorites",
