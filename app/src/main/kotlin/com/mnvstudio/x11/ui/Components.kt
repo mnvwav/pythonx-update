@@ -44,6 +44,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +85,11 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 }
 
 // ---------------------------------------------------------------- brand
+
+/** The accent as a diagonal gradient toward violet, like the logo: primary buttons and hero cards. */
+@Composable
+fun accentGradient(): androidx.compose.ui.graphics.Brush =
+    androidx.compose.ui.graphics.Brush.linearGradient(listOf(Accent, androidx.compose.ui.graphics.lerp(Accent, Color(0xFF7C4DFF), 0.65f)))
 
 /** Brand gradient behind the mark (launcher icon background, logo tile). */
 val BrandGradient = listOf(Color(0xFF5B8CFF), Color(0xFF7C4DFF))
@@ -135,9 +143,13 @@ fun Logo(size: Dp, modifier: Modifier = Modifier, framed: Boolean = true) {
 
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, enabled: Boolean = true, onClick: () -> Unit) {
+    val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.96f else 1f, label = "press")
     Row(
-        modifier.height(54.dp).clip(CircleShape).background(if (enabled) Accent else CardHigh)
-            .clickable(enabled = enabled, role = Role.Button, onClick = tap(onClick)).padding(horizontal = 22.dp),
+        modifier.height(54.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(CircleShape)
+            .background(if (enabled) accentGradient() else androidx.compose.ui.graphics.SolidColor(CardHigh))
+            .clickable(source, androidx.compose.material3.ripple(), enabled = enabled, role = Role.Button, onClick = tap(onClick)).padding(horizontal = 22.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) { Icon(icon, null, tint = if (enabled) OnAccent else Faint, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(10.dp)) }
