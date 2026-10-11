@@ -1,6 +1,5 @@
 package com.mnvstudio.x11.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -96,8 +95,7 @@ fun appIcon(id: String): ImageVector = when (id) {
 
 /** The built-in Linux: set it up, then install, open and manage apps and packages. */
 @Composable
-fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
+fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     LaunchedEffect(Unit) { Linux.check(context) }
     val log = remember { mutableStateListOf<String>() }
@@ -117,7 +115,7 @@ fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Page).systemBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(Page)) {
         TopBar("Linux apps", "Built-in Alpine Linux", onBack = onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 640.dp)) {

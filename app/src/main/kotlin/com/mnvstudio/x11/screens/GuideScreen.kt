@@ -1,6 +1,5 @@
 package com.mnvstudio.x11.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,7 +34,6 @@ import com.mnvstudio.x11.ui.Warn
 /** How to run apps, the gestures, and what works today. */
 @Composable
 fun GuideScreen(prefs: Prefs, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
     val d = prefs.display
     Column(Modifier.fillMaxSize().background(Page).systemBarsPadding()) {
         TopBar("Guide", onBack = onBack)

@@ -46,7 +46,26 @@ object Linux {
     private val main = Handler(Looper.getMainLooper())
     private fun ui(block: () -> Unit) { main.post(block) }
 
-    fun rootfs(context: Context) = File(context.filesDir, "alpine")
+    // ---------------------------------------------------------------- profiles
+
+    /** Each Linux profile is a separate root filesystem under files/profiles/<name>. */
+    fun profilesDir(context: Context) = File(context.filesDir, "profiles")
+
+    /** Moves the single environment of earlier versions into the "default" profile. */
+    private fun migrate(context: Context) {
+        val old = File(context.filesDir, "alpine")
+        val target = File(profilesDir(context), "default")
+        if (old.isDirectory && !target.exists()) { profilesDir(context).mkdirs(); old.renameTo(target) }
+    }
+
+    fun activeProfileName(context: Context): String = Prefs.of(context).linuxProfile
+
+    fun profiles(context: Context): List<String> {
+        migrate(context)
+        return (profilesDir(context).listFiles()?.filter { it.isDirectory }?.map { it.name } ?: emptyList()).sorted()
+    }
+
+    fun rootfs(context: Context): File { migrate(context); return File(profilesDir(context), activeProfileName(context)) }
     private fun marker(context: Context) = File(rootfs(context), ".x11-ready")
 
     fun check(context: Context) {
@@ -145,7 +164,7 @@ object Linux {
             if (File(lib, "libproot-loader32.so").exists()) put("PROOT_LOADER_32", "$lib/libproot-loader32.so")
             put("PROOT_TMP_DIR", tmp.path)
             // Some kernels break proot's seccomp acceleration; Diagnostics turns this on when it helps.
-            if (Prefs(app).prootNoSeccomp) put("PROOT_NO_SECCOMP", "1")
+            if (Prefs.of(app).prootNoSeccomp) put("PROOT_NO_SECCOMP", "1")
             put("HOME", "/root")
             put("USER", "root")
             put("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
@@ -259,7 +278,7 @@ object Linux {
      */
     fun diagnose(context: Context, onUpdate: (List<Check>) -> Unit, onDone: () -> Unit) {
         val app = context.applicationContext
-        val prefs = Prefs(app)
+        val prefs = Prefs.of(app)
         val checks = mutableListOf(Check("proot is bundled"), Check("Linux files present"), Check("Shell runs"),
             Check("Internet from Linux"), Check("Package index (apk update)"))
         fun set(i: Int, ok: Boolean, detail: String = "") {

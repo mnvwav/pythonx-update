@@ -1,6 +1,5 @@
 package com.mnvstudio.x11.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,7 +75,6 @@ private object ConsoleState {
 /** Run commands in the built-in Linux, with history and copyable output. */
 @Composable
 fun ConsoleScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
     val context = LocalContext.current
     var cmd by rememberSaveable { mutableStateOf("") }
     var historyIndex by remember { mutableStateOf(-1) }

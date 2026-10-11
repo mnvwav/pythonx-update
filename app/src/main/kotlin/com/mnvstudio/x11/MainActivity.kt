@@ -34,6 +34,51 @@ import com.mnvstudio.x11.screens.GuideScreen
 import com.mnvstudio.x11.screens.HomeScreen
 import com.mnvstudio.x11.screens.Onboarding
 import com.mnvstudio.x11.screens.SettingsScreen
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.mnvstudio.x11.screens.LinuxScreen
+import com.mnvstudio.x11.screens.SessionsScreen
+import com.mnvstudio.x11.screens.ToolScreen
+import com.mnvstudio.x11.ui.Accent
+import com.mnvstudio.x11.ui.Card
+import com.mnvstudio.x11.ui.Ink
+import com.mnvstudio.x11.ui.Label
+import com.mnvstudio.x11.ui.LocalIsLight
+import com.mnvstudio.x11.ui.Logo
+import com.mnvstudio.x11.ui.OnAccent
+import com.mnvstudio.x11.ui.Page
+import com.mnvstudio.x11.ui.SplashScreen
 import com.mnvstudio.x11.ui.AppTheme
 import com.mnvstudio.x11.ui.Haptics
 
@@ -111,41 +156,119 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = Prefs(this)
+        prefs = Prefs.of(this)
         if (savedInstanceState == null) handleIntent(intent)
-        val bars = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-        enableEdgeToEdge(bars, bars)
+        val dark = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        enableEdgeToEdge(dark, dark)
         setContent {
             Haptics.enabled = prefs.haptics
-            AppTheme(dynamic = prefs.dynamicColor, highContrast = prefs.highContrast) {
-                // Routes: home, display, apps, console, diagnostics, settings, guide.
-                val stack = rememberSaveable(saver = listSaver({ it.toList() }, { it.toMutableStateList() })) { mutableStateListOf("home") }
-                var onboarding by remember { mutableStateOf(!prefs.onboarded) }
-                val go: (String) -> Unit = { if (stack.last() != it) stack += it }
-                val back: () -> Unit = { if (stack.size > 1) stack.removeAt(stack.lastIndex) else finish() }
-                LaunchedEffect(pendingRoute, onboarding) { pendingRoute?.let { r -> if (!onboarding) { pendingRoute = null; go(r) } } }
-                BackHandler(enabled = stack.size > 1 && !onboarding) { back() }
-
-                if (onboarding) {
-                    Onboarding(prefs) { onboarding = false; XHolder.ensureStarted(this) }
-                } else {
-                    AnimatedContent(stack.last(), transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) }, label = "route") { route ->
-                        when (route) {
-                            "display" -> DisplayScreen(prefs, back, onApps = { go("apps") })
-                            "apps" -> AppsScreen(prefs, go, back)
-                            "console" -> ConsoleScreen(prefs, go, back)
-                            "diagnostics" -> DiagnosticsScreen(prefs, back)
-                            "settings" -> SettingsScreen(prefs, onReplayOnboarding = { stack.clear(); stack += "home"; onboarding = true }, onBack = back)
-                            "guide" -> GuideScreen(prefs, back)
-                            else -> HomeScreen(prefs, go)
-                        }
+            AppTheme(prefs.themeMode, prefs.accent, prefs.dynamicColor, prefs.highContrast) {
+                // Status bar icons follow the theme.
+                val light = LocalIsLight.current
+                LaunchedEffect(light) {
+                    val style = if (light) SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) else dark
+                    enableEdgeToEdge(style, style)
+                }
+                // App text size on top of the system font scale.
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * prefs.textScale)) {
+                    var splash by rememberSaveable { mutableStateOf(savedInstanceState == null && prefs.showSplash) }
+                    Box(Modifier.fillMaxSize()) {
+                        AppContent()
+                        if (splash) SplashScreen { splash = false }
                     }
                 }
             }
         }
     }
 
+    @Composable
+    private fun AppContent() {
+        // Navigation: one of the tabs, with full-screen routes pushed on top (display, terminal, files…).
+        var tab by rememberSaveable { mutableStateOf("home") }
+        val stack = rememberSaveable(saver = listSaver({ it.toList() }, { it.toMutableStateList() })) { mutableStateListOf<String>() }
+        var onboarding by remember { mutableStateOf(!prefs.onboarded) }
+        val go: (String) -> Unit = { r -> if (r in TABS) { stack.clear(); tab = r } else if (stack.lastOrNull() != r) stack += r }
+        val back: () -> Unit = {
+            when {
+                stack.isNotEmpty() -> stack.removeAt(stack.lastIndex)
+                tab != "home" -> tab = "home"
+                else -> finish()
+            }
+        }
+        LaunchedEffect(pendingRoute, onboarding) { pendingRoute?.let { r -> if (!onboarding) { pendingRoute = null; go(r) } } }
+        BackHandler(enabled = !onboarding && (stack.isNotEmpty() || tab != "home")) { back() }
+
+        if (onboarding) {
+            Onboarding(prefs) { onboarding = false; XHolder.ensureStarted(this) }
+            return
+        }
+        val pushed = stack.lastOrNull()
+        AnimatedContent(pushed ?: "tab:$tab", transitionSpec = {
+            (fadeIn(tween(180)) + slideInHorizontally(tween(220)) { it / 12 }) togetherWith fadeOut(tween(120))
+        }, label = "route") { route ->
+            if (route.startsWith("tab:")) Tabs(route.removePrefix("tab:"), go) { t -> tab = t }
+            else Box(Modifier.fillMaxSize().background(Page).then(if (route == "display") Modifier else Modifier.systemBarsPadding())) {
+                Pushed(route, go, back)
+            }
+        }
+    }
+
+    @Composable
+    private fun Tabs(tab: String, go: (String) -> Unit, select: (String) -> Unit) {
+        BoxWithConstraints(Modifier.fillMaxSize().background(Page)) {
+            val rail = prefs.navLayout == "rail" || (prefs.navLayout == "auto" && maxWidth >= 600.dp)
+            val content: @Composable (Modifier) -> Unit = { m ->
+                Box(m) {
+                    when (tab) {
+                        "apps" -> AppsScreen(prefs, go)
+                        "linux" -> LinuxScreen(prefs, go)
+                        "sessions" -> SessionsScreen(prefs, go)
+                        "settings" -> SettingsScreen(prefs, go, onReplayOnboarding = { prefs.onboarded = false; recreate() })
+                        else -> HomeScreen(prefs, go)
+                    }
+                }
+            }
+            if (rail) Row(Modifier.fillMaxSize().systemBarsPadding()) {
+                NavigationRail(containerColor = Card, header = { Logo(40.dp, Modifier.padding(vertical = 12.dp)) }) {
+                    Spacer(Modifier.weight(1f))
+                    NAV.forEach { (id, label, icon) ->
+                        NavigationRailItem(tab == id, { select(id) }, icon = { Icon(icon, null) }, label = { Text(label) },
+                            colors = NavigationRailItemDefaults.colors(selectedIconColor = OnAccent, indicatorColor = Accent, unselectedIconColor = Label, unselectedTextColor = Label, selectedTextColor = Ink))
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
+                content(Modifier.weight(1f).fillMaxSize())
+            } else Column(Modifier.fillMaxSize()) {
+                content(Modifier.weight(1f).fillMaxWidth().statusBarsPadding())
+                NavigationBar(containerColor = Card, tonalElevation = 0.dp) {
+                    NAV.forEach { (id, label, icon) ->
+                        NavigationBarItem(tab == id, { select(id) }, icon = { Icon(icon, null) }, label = { Text(label, fontSize = 11.sp) },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = OnAccent, indicatorColor = Accent, unselectedIconColor = Label, unselectedTextColor = Label, selectedTextColor = Ink))
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun Pushed(route: String, go: (String) -> Unit, back: () -> Unit) {
+        val arg = route.substringAfter('?', "")
+        when (route.substringBefore('?')) {
+            "display" -> DisplayScreen(prefs, back, onApps = { go("apps") })
+            "console" -> ConsoleScreen(prefs, go, back)
+            "diagnostics" -> DiagnosticsScreen(prefs, back)
+            "help" -> GuideScreen(prefs, back)
+            else -> ToolScreen(route.substringBefore('?'), arg, prefs, go, back)
+        }
+    }
+
     companion object {
         const val EXTRA_ROUTE = "route"
+        val TABS = setOf("home", "apps", "linux", "sessions", "settings")
+        private val NAV = listOf(
+            Triple("home", "Home", Icons.Filled.Home), Triple("apps", "Apps", Icons.Filled.Apps), Triple("linux", "Linux", Icons.Filled.Terminal),
+            Triple("sessions", "Sessions", Icons.Filled.Layers), Triple("settings", "Settings", Icons.Filled.Settings),
+        )
     }
 }

@@ -40,7 +40,7 @@ object XHolder {
 
     /** Starts the server now (if needed) and the foreground service that keeps it running. Returns false on failure. */
     fun ensureStarted(context: Context): Boolean {
-        val ok = start(context, Prefs(context))
+        val ok = start(context, Prefs.of(context))
         if (ok) XService.start(context)
         return ok
     }

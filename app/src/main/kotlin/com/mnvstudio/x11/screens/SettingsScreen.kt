@@ -1,33 +1,45 @@
 package com.mnvstudio.x11.screens
 
-import android.os.Build
-import androidx.activity.compose.BackHandler
+import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Mouse
-import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,179 +50,199 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mnvstudio.x11.Kind
 import com.mnvstudio.x11.Launcher
 import com.mnvstudio.x11.Prefs
+import com.mnvstudio.x11.Preset
+import com.mnvstudio.x11.SettingItem
+import com.mnvstudio.x11.SettingsModel
 import com.mnvstudio.x11.XHolder
 import com.mnvstudio.x11.XService
 import com.mnvstudio.x11.ui.Accent
+import com.mnvstudio.x11.ui.AccentSoft
+import com.mnvstudio.x11.ui.Card
+import com.mnvstudio.x11.ui.CardHigh
 import com.mnvstudio.x11.ui.Chips
+import com.mnvstudio.x11.ui.Confirm
 import com.mnvstudio.x11.ui.Faint
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
+import com.mnvstudio.x11.ui.Line
 import com.mnvstudio.x11.ui.Mono
-import com.mnvstudio.x11.ui.OptionCard
 import com.mnvstudio.x11.ui.Page
 import com.mnvstudio.x11.ui.SecondaryButton
 import com.mnvstudio.x11.ui.SectionTitle
+import com.mnvstudio.x11.ui.ShapeL
 import com.mnvstudio.x11.ui.ShapeM
 import com.mnvstudio.x11.ui.SliderRow
 import com.mnvstudio.x11.ui.SurfaceCard
 import com.mnvstudio.x11.ui.ToggleRow
 import com.mnvstudio.x11.ui.TopBar
-import kotlin.math.roundToInt
+import com.mnvstudio.x11.ui.copyText
+import kotlinx.coroutines.delay
+import org.json.JSONObject
+
+/** One undoable change: the settings it touched and their previous values. */
+private class Change(val label: String, val before: JSONObject)
 
 @Composable
-fun SettingsScreen(prefs: Prefs, onReplayOnboarding: () -> Unit, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
+fun SettingsScreen(prefs: Prefs, navigate: (String) -> Unit, onReplayOnboarding: () -> Unit, onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
-    val running = XHolder.server != null
-    Column(Modifier.fillMaxSize().background(Page).systemBarsPadding()) {
-        TopBar("Settings", onBack = onBack)
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Column(Modifier.widthIn(max = 640.dp)) {
-                if (running) {
-                    Row(Modifier.fillMaxWidth().clip(ShapeM).background(Accent.copy(alpha = 0.1f)).clickable { XService.stop(context) }.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Info, null, tint = Accent)
-                        Text("Display, network and window settings apply the next time the display starts. Tap to stop it now.",
-                            color = Ink, fontSize = 13.sp, modifier = Modifier.padding(start = 10.dp))
-                    }
-                }
+    var query by rememberSaveable { mutableStateOf("") }
+    var undo by remember { mutableStateOf<Change?>(null) }
+    var confirmReset by remember { mutableStateOf<String?>(null) }
+    val all = SettingsModel.items(prefs)
+    LaunchedEffect(undo) { if (undo != null) { delay(6000); undo = null } }
 
-                SectionTitle("Display")
-                SurfaceCard {
-                    FieldLabel("Resolution")
-                    Chips(Prefs.RESOLUTIONS, prefs.resolution, label = { if (it == Prefs.RES_NATIVE) "Fit my screen" else it }) { prefs.resolution = it }
-                    if (prefs.resolution == Prefs.RES_NATIVE) {
-                        Spacer(Modifier.height(8.dp))
-                        SliderRow("Detail", "${(prefs.scale * 100).roundToInt()}%", prefs.scale, 0.25f..1f, steps = 2) { prefs.scale = it }
-                        Hint("Lower detail makes apps larger and faster.")
-                    }
-                    if (prefs.resolution == Prefs.RES_CUSTOM) {
-                        Spacer(Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            NumberField("Width", prefs.customW, Modifier.weight(1f)) { prefs.customW = it }
-                            Text("×", color = Label, modifier = Modifier.padding(horizontal = 10.dp))
-                            NumberField("Height", prefs.customH, Modifier.weight(1f)) { prefs.customH = it }
+    fun change(keys: Collection<String>, label: String, block: () -> Unit) {
+        undo = Change(label, prefs.toJson(keys))
+        block()
+    }
+
+    Box(Modifier.fillMaxSize().background(Page)) {
+        Column(Modifier.fillMaxSize()) {
+            TopBar("Settings", onBack = onBack)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.widthIn(max = 680.dp)) {
+                    OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, shape = ShapeM,
+                        placeholder = { Text("Search settings", color = Faint) },
+                        leadingIcon = { Icon(Icons.Filled.Search, null, tint = Label) },
+                        trailingIcon = { if (query.isNotEmpty()) Icon(Icons.Filled.Close, "Clear search", tint = Label, modifier = Modifier.clickable { query = "" }) },
+                        textStyle = TextStyle(color = Ink, fontSize = 15.sp))
+                    Spacer(Modifier.height(10.dp))
+                    ToggleRow("Advanced settings", "Show options for power users", prefs.advanced) { prefs.advanced = it }
+
+                    if (XHolder.server != null) {
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp).clip(ShapeM).background(AccentSoft).clickable { XService.stop(context) }.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Info, null, tint = Accent)
+                            Text("Settings marked ↻ apply when the display restarts. Tap to stop it now.", color = Ink, fontSize = 13.sp,
+                                modifier = Modifier.padding(start = 10.dp))
                         }
                     }
-                    val (w, h) = prefs.screenSize()
-                    Hint("Screen: $w × $h")
-                    FieldLabel("Fit to phone")
-                    Chips(listOf("fit", "stretch", "pixel"), prefs.fitMode, label = { when (it) { "fit" -> "Fit"; "stretch" -> "Stretch"; else -> "1:1 pixels" } }) { prefs.fitMode = it }
-                    FieldLabel("Text size (DPI)")
-                    Chips(listOf("0", "96", "120", "144", "192", "240"), "${prefs.dpiSetting}", label = { if (it == "0") "Auto (${prefs.dpi()})" else it }) { prefs.dpiSetting = it.toInt() }
-                    Hint("Higher makes text bigger in apps that follow Xft.dpi.")
-                    FieldLabel("Frame rate limit")
-                    Chips(listOf("30", "60", "120"), "${prefs.maxFps}", label = { "$it fps" }) { prefs.maxFps = it.toInt() }
-                    FieldLabel("Orientation")
-                    Chips(listOf("landscape", "portrait", "auto"), prefs.orientation, label = { it.replaceFirstChar(Char::uppercase) }) { prefs.orientation = it }
-                    FieldLabel("Display number")
-                    Chips((0..3).map { "$it" }, "${prefs.display}", label = { ":$it" }) { prefs.display = it.toInt() }
-                    Spacer(Modifier.height(8.dp))
-                    ToggleRow("Smooth scaling", "Filter the picture when it's scaled", prefs.smoothScaling) { prefs.smoothScaling = it }
-                    ToggleRow("Use the notch area", "Draw behind the camera cutout", prefs.drawInCutout) { prefs.drawInCutout = it }
-                    ToggleRow("Keep screen on", "While the display is open", prefs.keepScreenOn) { prefs.keepScreenOn = it }
-                    ToggleRow("Performance overlay", "Show frames per second on the display", prefs.perfOverlay) { prefs.perfOverlay = it }
-                }
 
-                SectionTitle("Windows")
-                SurfaceCard {
-                    ToggleRow("Desktop mode", "Start a window manager so windows can be moved and resized (installs twm from Linux apps)", prefs.desktopMode) { prefs.desktopMode = it }
-                    ToggleRow("Full-screen apps", "Without a window manager, each new window fills the screen", prefs.fitWindows, enabled = !prefs.desktopMode) { prefs.fitWindows = it }
-                }
-
-                SectionTitle("Input")
-                SurfaceCard {
-                    OptionCard(Icons.Filled.Mouse, "Trackpad", "Drag moves the pointer, tap clicks, two fingers scroll or right-click.",
-                        prefs.touchMode == Prefs.MODE_TOUCHPAD) { prefs.touchMode = Prefs.MODE_TOUCHPAD }
-                    Spacer(Modifier.height(10.dp))
-                    OptionCard(Icons.Filled.TouchApp, "Direct touch", "Touch where you want to click; two fingers scroll.",
-                        prefs.touchMode == Prefs.MODE_DIRECT) { prefs.touchMode = Prefs.MODE_DIRECT }
-                    Spacer(Modifier.height(8.dp))
-                    SliderRow("Pointer speed", "${"%.1f".format(prefs.pointerSpeed)}×", prefs.pointerSpeed, 0.5f..3f) { prefs.pointerSpeed = it }
-                    SliderRow("Cursor size", "${"%.1f".format(prefs.cursorScale)}×", prefs.cursorScale, 0.6f..3f) { prefs.cursorScale = it }
-                    ToggleRow("Extra keys bar", "Esc, Tab, Ctrl, Alt, Super, arrows and F1–F12 above the keyboard", prefs.extraKeys) { prefs.extraKeys = it }
-                    FieldLabel("Extra keys layout")
-                    OutlinedTextField(prefs.keyLayout, { prefs.keyLayout = it.uppercaseKeys() }, Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = Ink), shape = ShapeM)
-                    Hint("Keys: ESC TAB CTRL ALT SHIFT SUPER UP DOWN LEFT RIGHT HOME END PGUP PGDN INS DEL BKSP ENTER F1–F12 FN KBD RCLICK DRAG. " +
-                        "Other text is typed as is. Tap a modifier for one key, double-tap to lock it.")
-                    Text("Reset layout", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 8.dp).clickable { prefs.keyLayout = Prefs.DEFAULT_KEYS })
-                }
-
-                SectionTitle("Clipboard")
-                SurfaceCard {
-                    ToggleRow("Share clipboard", "Copy and paste between Android and Linux apps", prefs.clipboardSync) { prefs.clipboardSync = it }
-                    ToggleRow("Include mouse selections", "Also copy text you select in Linux apps", prefs.syncPrimary, enabled = prefs.clipboardSync) { prefs.syncPrimary = it }
-                }
-
-                SectionTitle("Network")
-                SurfaceCard {
-                    ToggleRow("Allow other devices", "Accept X11 apps from computers on your network (port ${6000 + prefs.display})", prefs.lanAccess) { prefs.lanAccess = it }
-                    if (prefs.lanAccess) {
-                        FieldLabel("Allowed addresses")
-                        OutlinedTextField(prefs.allowList, { prefs.allowList = it }, Modifier.fillMaxWidth(), shape = ShapeM,
-                            placeholder = { Text("192.168.1.20, 192.168.1.*", color = Faint, fontFamily = Mono) },
-                            textStyle = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = Ink))
-                        Hint("Only these can connect; others are refused and noted in Diagnostics. On the computer: DISPLAY=<phone IP>:${prefs.display}")
+                    if (query.isBlank()) {
+                        SectionTitle("Presets")
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SettingsModel.PRESETS.forEach { pr -> PresetCard(pr) {
+                                change(SettingsModel.items(prefs).map { it.key } + pr.values.keys, "Applied ${pr.name}") {
+                                    if (pr.values.isEmpty()) prefs.reset() else pr.values.forEach { (k, v) -> SettingsModel.set(prefs, k, v) }
+                                }
+                            } }
+                        }
                     }
-                }
 
-                SectionTitle("Power")
-                SurfaceCard {
-                    var exempt by remember { mutableStateOf(Launcher.ignoringBatteryOptimizations(context)) }
-                    ToggleRow("Run without battery limits", if (exempt) "Allowed: X11 keeps running in the background" else "Recommended so the display survives switching apps",
-                        exempt, enabled = !exempt) { Launcher.requestBatteryExemption(context); exempt = true }
-                    ToggleRow("Keep the CPU awake", "For long installs or builds with the screen off; uses more battery", prefs.wakeLock) { prefs.wakeLock = it }
-                    FieldLabel("Stop when idle")
-                    Chips(listOf("0", "10", "30", "60"), "${prefs.idleStopMinutes}", label = { if (it == "0") "Never" else "$it min" }) { prefs.idleStopMinutes = it.toInt() }
-                    Hint("Stops the display after this long with no apps connected.")
-                }
+                    val shown = all.filter { it.matches(query) && it.visible() && (prefs.advanced || !it.advanced || query.isNotBlank()) }
+                    SettingsModel.SECTIONS.forEach { section ->
+                        val items = shown.filter { it.section == section }
+                        if (items.isEmpty()) return@forEach
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SectionTitle(section, Modifier.weight(1f))
+                            Text("Reset", color = Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp).clip(CircleShape)
+                                .clickable { confirmReset = section }.padding(horizontal = 10.dp, vertical = 4.dp))
+                        }
+                        SurfaceCard(padding = 16.dp) {
+                            items.forEach { item -> SettingRow(prefs, item) { block -> change(listOf(item.key), item.title, block) } }
+                        }
+                    }
+                    if (shown.isEmpty()) Text("No settings match \"$query\".", color = Label, modifier = Modifier.padding(top = 24.dp))
 
-                SectionTitle("Look & accessibility")
-                SurfaceCard {
-                    ToggleRow("Wallpaper colors", if (Build.VERSION.SDK_INT >= 31) "Use Material You colors from your wallpaper" else "Needs Android 12 or newer",
-                        prefs.dynamicColor, enabled = Build.VERSION.SDK_INT >= 31) { prefs.dynamicColor = it }
-                    ToggleRow("High contrast", "Brighter text and borders", prefs.highContrast) { prefs.highContrast = it }
-                    ToggleRow("Vibrate on taps", null, prefs.haptics) { prefs.haptics = it }
+                    if (query.isBlank()) {
+                        SectionTitle("More")
+                        SurfaceCard {
+                            var exempt by remember { mutableStateOf(Launcher.ignoringBatteryOptimizations(context)) }
+                            ToggleRow("Run without battery limits", if (exempt) "Allowed" else "Recommended so the display survives switching apps",
+                                exempt, enabled = !exempt) { Launcher.requestBatteryExemption(context); exempt = true }
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                SecondaryButton("Copy settings", Modifier.weight(1f)) { copyText(context, prefs.toJson().toString(2), "Settings copied as JSON") }
+                                SecondaryButton("Paste settings", Modifier.weight(1f)) { pasteSettings(context, prefs) { ch, n -> undo = ch; toast(context, "$n settings applied") } }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            SecondaryButton("Replay setup", Modifier.fillMaxWidth()) { onReplayOnboarding() }
+                            Spacer(Modifier.height(10.dp))
+                            SecondaryButton("Reset all settings", Modifier.fillMaxWidth(), icon = Icons.Filled.RestartAlt) { confirmReset = "all" }
+                        }
+                        SectionTitle("About")
+                        SurfaceCard {
+                            Text("X11 1.0", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text("No tracking, no accounts. Works offline once Linux is set up. Fonts: misc-fixed (public domain); proot (GPL-2.0).",
+                                color = Faint, fontSize = 12.sp, lineHeight = 17.sp)
+                            Text("Help & guide", color = Accent, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp).clickable { navigate("help") })
+                        }
+                    }
+                    Spacer(Modifier.height(96.dp))
                 }
-
-                SectionTitle("App")
-                SurfaceCard {
-                    SecondaryButton("Replay setup", Modifier.fillMaxWidth()) { onReplayOnboarding() }
-                    Spacer(Modifier.height(16.dp))
-                    Text("X11 1.0", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Text("No tracking, no accounts. Works offline once Linux is set up. Bundled fonts: misc-fixed (public domain); proot (GPL-2.0).",
-                        color = Faint, fontSize = 12.sp, lineHeight = 17.sp)
-                }
-                Spacer(Modifier.height(32.dp))
             }
+        }
+        // Undo bar.
+        AnimatedVisibility(undo != null, Modifier.align(Alignment.BottomCenter).padding(16.dp),
+            enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
+            val u = undo
+            Row(Modifier.widthIn(max = 560.dp).fillMaxWidth().clip(ShapeL).background(CardHigh).border(1.dp, Line, ShapeL).padding(horizontal = 18.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(u?.label ?: "", color = Ink, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Text("Undo", color = Accent, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { u?.let { prefs.fromJson(it.before) }; undo = null }.padding(8.dp))
+            }
+        }
+    }
+    confirmReset?.let { section ->
+        Confirm(if (section == "all") "Reset all settings?" else "Reset $section settings?", "They go back to their defaults. You can undo right after.",
+            "Reset", onDismiss = { confirmReset = null }) {
+            val keys = if (section == "all") all.map { it.key } else all.filter { it.section == section }.map { it.key }
+            change(keys, "Reset ${if (section == "all") "all settings" else section}") { prefs.reset(if (section == "all") null else keys) }
         }
     }
 }
 
-@Composable
-private fun ColumnScope.FieldLabel(text: String) {
-    Text(text, color = Ink, fontSize = 15.sp, modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
+private fun toast(context: Context, msg: String) = android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+
+/** Applies settings JSON from the clipboard; invalid JSON or values are ignored. */
+private fun pasteSettings(context: Context, prefs: Prefs, done: (Change, Int) -> Unit) {
+    val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+    val text = cm.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() ?: return toast(context, "Clipboard is empty")
+    val json = runCatching { JSONObject(text) }.getOrNull() ?: return toast(context, "That isn't settings JSON")
+    val before = prefs.toJson()
+    done(Change("Pasted settings", before), prefs.fromJson(json))
 }
 
 @Composable
-private fun Hint(text: String) {
-    Text(text, color = Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
+private fun PresetCard(p: Preset, onClick: () -> Unit) {
+    Column(Modifier.width(170.dp).clip(ShapeM).background(Card).border(1.dp, Line, ShapeM).clickable(onClick = onClick).padding(14.dp)) {
+        Icon(Icons.Filled.Tune, null, tint = Accent)
+        Text(p.name, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(p.description, color = Label, fontSize = 12.sp, lineHeight = 16.sp)
+    }
 }
 
-/** Keeps known key names upper-case while leaving typed text (like | or ~) alone. */
-private fun String.uppercaseKeys() = split(" ").joinToString(" ") { if (it.length > 1 && it.all(Char::isLetterOrDigit)) it.uppercase() else it }
-
 @Composable
-private fun NumberField(label: String, value: Int, modifier: Modifier, onChange: (Int) -> Unit) {
-    var text by remember(value) { mutableStateOf("$value") }
-    OutlinedTextField(
-        text, { t -> text = t.filter(Char::isDigit).take(4); text.toIntOrNull()?.let(onChange) }, modifier,
-        label = { Text(label) }, singleLine = true, shape = ShapeM,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        textStyle = TextStyle(fontFamily = Mono, color = Ink),
-    )
+private fun SettingRow(prefs: Prefs, item: SettingItem, change: (() -> Unit) -> Unit) {
+    val value = SettingsModel.value(prefs, item.key)
+    val title = item.title + if (item.needsRestart) "  ↻" else ""
+    when (item.kind) {
+        Kind.TOGGLE -> ToggleRow(title, item.summary.ifEmpty { null }, value.toBoolean(), enabled = item.enabled()) { v -> change { SettingsModel.set(prefs, item.key, v) } }
+        Kind.CHOICE -> Column(Modifier.padding(vertical = 8.dp)) {
+            Text(title, color = Ink, fontSize = 15.sp)
+            if (item.summary.isNotEmpty()) Text(item.summary, color = Label, fontSize = 12.sp)
+            Spacer(Modifier.height(8.dp))
+            Chips(item.options.map { it.first }, value, label = { v -> item.options.firstOrNull { it.first == v }?.second ?: v }) { v ->
+                change { SettingsModel.set(prefs, item.key, v) }
+            }
+        }
+        Kind.SLIDER -> SliderRow(title, item.format(value.toFloatOrNull() ?: 0f), value.toFloatOrNull() ?: 0f, item.range, item.steps) { v ->
+            SettingsModel.set(prefs, item.key, v)
+        }
+        Kind.TEXT -> Column(Modifier.padding(vertical = 8.dp)) {
+            Text(title, color = Ink, fontSize = 15.sp)
+            var text by remember(value) { mutableStateOf(value) }
+            val numeric = prefs.entry(item.key)?.default is Int
+            OutlinedTextField(text, { t ->
+                text = if (numeric) t.filter(Char::isDigit).take(5) else t
+                if (!numeric || text.isNotEmpty()) SettingsModel.set(prefs, item.key, text)
+            }, Modifier.fillMaxWidth().padding(top = 8.dp), shape = ShapeM, singleLine = numeric,
+                keyboardOptions = if (numeric) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
+                textStyle = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = Ink))
+            if (item.summary.isNotEmpty()) Text(item.summary, color = Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
 }

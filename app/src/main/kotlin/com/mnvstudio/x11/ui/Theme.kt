@@ -15,6 +15,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -46,6 +47,21 @@ private val Graphite = Palette(
     live = Color(0xFF3DDC97), bad = Color(0xFFFF6B6B), warn = Color(0xFFFFB547), code = Color(0xFF09090B),
 )
 
+private val Amoled = Graphite.copy(page = Color.Black, card = Color(0xFF0A0A0B), raised = Color(0xFF141416), line = Color(0xFF222226), code = Color.Black)
+
+private val Paper = Palette(
+    page = Color(0xFFF6F6F8), card = Color.White, raised = Color(0xFFEDEDF1), line = Color(0xFFDCDCE2),
+    ink = Color(0xFF111114), label = Color(0xFF55555F), faint = Color(0xFF8A8A94),
+    accent = Color(0xFF2F6BFF), onAccent = Color.White, accentSoft = Color(0xFFE3EBFF),
+    live = Color(0xFF13A86B), bad = Color(0xFFD93A3A), warn = Color(0xFFB7791F), code = Color(0xFF111114),
+)
+
+/** Accent choices in Settings, with the soft tint used behind selected items (dark, light). */
+val ACCENTS = mapOf(
+    "Blue" to Color(0xFF5B8CFF), "Violet" to Color(0xFF9B7BFF), "Teal" to Color(0xFF2EC4B6),
+    "Orange" to Color(0xFFFF8A3D), "Pink" to Color(0xFFFF5C9A), "Lime" to Color(0xFF9BD12E),
+)
+
 private val HighContrast = Graphite.copy(
     page = Color.Black, card = Color(0xFF0C0C0C), raised = Color(0xFF161616), line = Color(0xFF8A8A8A),
     ink = Color.White, label = Color(0xFFE2E2E2), faint = Color(0xFFBDBDBD), accent = Color(0xFF8AB0FF), accentSoft = Color(0xFF1F2B4D),
@@ -54,6 +70,9 @@ private val HighContrast = Graphite.copy(
 private fun Palette.withDynamic(s: ColorScheme) = copy(accent = s.primary, onAccent = s.onPrimary, accentSoft = s.primaryContainer)
 
 val LocalPalette = staticCompositionLocalOf { Graphite }
+val LocalIsLight = staticCompositionLocalOf { false }
+
+private fun Color.darker() = Color(red * 0.82f, green * 0.82f, blue * 0.82f, alpha)
 
 val Page @Composable @ReadOnlyComposable get() = LocalPalette.current.page
 val Card @Composable @ReadOnlyComposable get() = LocalPalette.current.card
@@ -100,12 +119,19 @@ private val AppTypography = Typography().run {
     )
 }
 
+/** [mode] is "dark", "light", "amoled" or "system"; [accent] a key of [ACCENTS]. */
 @Composable
-fun AppTheme(dynamic: Boolean = false, highContrast: Boolean = false, content: @Composable () -> Unit) {
+fun AppTheme(mode: String = "dark", accent: String = "Blue", dynamic: Boolean = false, highContrast: Boolean = false, content: @Composable () -> Unit) {
     val context = LocalContext.current
-    var p = if (highContrast) HighContrast else Graphite
-    if (dynamic && Build.VERSION.SDK_INT >= 31 && !highContrast) p = p.withDynamic(dynamicDarkColorScheme(context))
-    val scheme = darkColorScheme(
+    val light = mode == "light" || (mode == "system" && !androidx.compose.foundation.isSystemInDarkTheme())
+    var p = when { highContrast -> HighContrast; light -> Paper; mode == "amoled" -> Amoled; else -> Graphite }
+    val a = ACCENTS[accent]
+    if (a != null && !highContrast) p = p.copy(accent = if (light) a.darker() else a, accentSoft = a.copy(alpha = if (light) 0.14f else 0.18f).compositeOver(p.page))
+    if (dynamic && Build.VERSION.SDK_INT >= 31 && !highContrast) {
+        p = p.withDynamic(if (light) androidx.compose.material3.dynamicLightColorScheme(context) else dynamicDarkColorScheme(context))
+    }
+    val base = if (light) androidx.compose.material3.lightColorScheme() else darkColorScheme()
+    val scheme = base.copy(
         primary = p.accent, onPrimary = p.onAccent, primaryContainer = p.accentSoft, onPrimaryContainer = p.ink,
         secondary = p.live, onSecondary = Color.Black, secondaryContainer = p.raised, onSecondaryContainer = p.ink,
         background = p.page, onBackground = p.ink, surface = p.page, onSurface = p.ink,
@@ -113,7 +139,7 @@ fun AppTheme(dynamic: Boolean = false, highContrast: Boolean = false, content: @
         surfaceContainerLowest = p.page, surfaceContainerLow = p.card, surfaceContainer = p.card,
         surfaceContainerHigh = p.raised, surfaceContainerHighest = p.raised, error = p.bad, onError = Color.White,
     )
-    CompositionLocalProvider(LocalPalette provides p) {
+    CompositionLocalProvider(LocalPalette provides p, LocalIsLight provides light) {
         MaterialTheme(colorScheme = scheme, typography = AppTypography,
             shapes = Shapes(small = ShapeS, medium = ShapeM, large = ShapeL, extraLarge = ShapeL), content = content)
     }

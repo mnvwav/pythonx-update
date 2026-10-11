@@ -1,93 +1,170 @@
 package com.mnvstudio.x11
 
 import android.content.Context
-import androidx.compose.runtime.MutableState
+import android.content.SharedPreferences
 import androidx.compose.runtime.mutableStateOf
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
-/** Settings, persisted in SharedPreferences. Setters write through immediately and recompose readers. */
-class Prefs(context: Context) {
-    private val sp = context.applicationContext.getSharedPreferences("prefs", Context.MODE_PRIVATE)
-    private val metrics = context.resources.displayMetrics
+/**
+ * All settings, persisted in SharedPreferences and shared app-wide ([of]). Every setting is observable Compose state,
+ * so screens update when it changes. Settings can be reset, exported to JSON and imported again.
+ */
+class Prefs private constructor(context: Context) {
+    private val sp: SharedPreferences = context.applicationContext.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+    private val metrics = context.applicationContext.resources.displayMetrics
+    private val entries = LinkedHashMap<String, Entry<*>>()
 
-    private fun str(key: String, def: String) = mutableStateOf(sp.getString(key, def) ?: def)
-    private fun bool(key: String, def: Boolean) = mutableStateOf(sp.getBoolean(key, def))
-    private fun int(key: String, def: Int) = mutableStateOf(sp.getInt(key, def))
-    private fun float(key: String, def: Float) = mutableStateOf(sp.getFloat(key, def))
-    private fun strings(key: String) = mutableStateOf(sp.getStringSet(key, emptySet())?.toSet() ?: emptySet())
-    private fun <T : Any> set(state: MutableState<T>, key: String, v: T) {
-        state.value = v
-        sp.edit().apply {
-            @Suppress("UNCHECKED_CAST")
-            when (v) {
-                is Boolean -> putBoolean(key, v); is Int -> putInt(key, v); is Float -> putFloat(key, v)
-                is Set<*> -> putStringSet(key, v as Set<String>)
-                else -> putString(key, v.toString())
-            }
-        }.apply()
+    /** One setting: its key, default and live state. */
+    inner class Entry<T : Any>(val key: String, val default: T) : ReadWriteProperty<Any?, T> {
+        val state = mutableStateOf(load())
+
+        @Suppress("UNCHECKED_CAST")
+        private fun load(): T = runCatching {
+            when (default) {
+                is Boolean -> sp.getBoolean(key, default); is Int -> sp.getInt(key, default); is Float -> sp.getFloat(key, default)
+                is Set<*> -> sp.getStringSet(key, default as Set<String>)?.toSet() ?: default
+                else -> sp.getString(key, default as String) ?: default
+            } as T
+        }.getOrDefault(default)
+
+        @Suppress("UNCHECKED_CAST")
+        fun write(v: T) {
+            state.value = v
+            sp.edit().apply {
+                when (v) {
+                    is Boolean -> putBoolean(key, v); is Int -> putInt(key, v); is Float -> putFloat(key, v)
+                    is Set<*> -> putStringSet(key, v as Set<String>)
+                    else -> putString(key, v.toString())
+                }
+            }.apply()
+        }
+
+        fun reset() = write(default)
+        override fun getValue(thisRef: Any?, property: KProperty<*>): T = state.value
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) = write(value)
     }
 
-    private val _onboarded = bool("onboarded", false); var onboarded get() = _onboarded.value; set(v) = set(_onboarded, "onboarded", v)
+    private fun <T : Any> pref(key: String, default: T) = Entry(key, default).also { entries[key] = it }
+
+    var onboarded by pref("onboarded", false)
 
     // Display.
     /** "Native", "Custom" or "WIDTHxHEIGHT". */
-    private val _resolution = str("resolution", RES_NATIVE); var resolution get() = _resolution.value; set(v) = set(_resolution, "resolution", v)
+    var resolution by pref("resolution", RES_NATIVE)
     /** Fraction of the device's pixels used at native resolution (smaller = bigger UI, faster). */
-    private val _scale = float("scale", 0.5f); var scale get() = _scale.value; set(v) = set(_scale, "scale", v)
-    private val _customW = int("customW", 1280); var customW get() = _customW.value; set(v) = set(_customW, "customW", v)
-    private val _customH = int("customH", 720); var customH get() = _customH.value; set(v) = set(_customH, "customH", v)
-    private val _display = int("display", 0); var display get() = _display.value; set(v) = set(_display, "display", v)
+    var scale by pref("scale", 0.5f)
+    var customW by pref("customW", 1280)
+    var customH by pref("customH", 720)
+    var display by pref("display", 0)
     /** "fit", "stretch" or "pixel" (1:1). */
-    private val _fitMode = str("fitMode", "fit"); var fitMode get() = _fitMode.value; set(v) = set(_fitMode, "fitMode", v)
+    var fitMode by pref("fitMode", "fit")
     /** Text scaling reported to apps (Xft.dpi); 0 = automatic. */
-    private val _dpi = int("dpi", 0); var dpiSetting get() = _dpi.value; set(v) = set(_dpi, "dpi", v)
-    private val _maxFps = int("maxFps", 60); var maxFps get() = _maxFps.value; set(v) = set(_maxFps, "maxFps", v)
-    private val _smooth = bool("smooth", true); var smoothScaling get() = _smooth.value; set(v) = set(_smooth, "smooth", v)
+    var dpiSetting by pref("dpi", 0)
+    var maxFps by pref("maxFps", 60)
+    var smoothScaling by pref("smooth", true)
     /** "auto", "landscape" or "portrait" while the display is open. */
-    private val _orientation = str("orientation", "landscape"); var orientation get() = _orientation.value; set(v) = set(_orientation, "orientation", v)
-    private val _cutout = bool("cutout", false); var drawInCutout get() = _cutout.value; set(v) = set(_cutout, "cutout", v)
-    private val _keepScreenOn = bool("keepScreenOn", true); var keepScreenOn get() = _keepScreenOn.value; set(v) = set(_keepScreenOn, "keepScreenOn", v)
-    private val _perfOverlay = bool("perfOverlay", false); var perfOverlay get() = _perfOverlay.value; set(v) = set(_perfOverlay, "perfOverlay", v)
+    var orientation by pref("orientation", "landscape")
+    var drawInCutout by pref("cutout", false)
+    var keepScreenOn by pref("keepScreenOn", true)
+    var perfOverlay by pref("perfOverlay", false)
+    /** Restart the display at the new size when the phone rotates (apps reconnect). */
+    var followRotation by pref("followRotation", false)
 
     // Windows.
-    /** Run a window manager (twm) automatically so windows can be moved and resized like a desktop. */
-    private val _desktopMode = bool("desktopMode", false); var desktopMode get() = _desktopMode.value; set(v) = set(_desktopMode, "desktopMode", v)
-    /** Without a window manager, top-level windows fill the screen. */
-    private val _fitWindows = bool("fitWindows", true); var fitWindows get() = _fitWindows.value; set(v) = set(_fitWindows, "fitWindows", v)
-    /** Catalog app ids started with the server. */
-    private val _autostart = strings("autostart"); var autostart get() = _autostart.value; set(v) = set(_autostart, "autostart", v)
+    var desktopMode by pref("desktopMode", false)
+    var fitWindows by pref("fitWindows", true)
+    /** Catalog app ids started with the display. */
+    var autostart by pref("autostart", emptySet<String>())
 
     // Input.
-    /** "touchpad" (trackpad: relative pointer) or "direct" (touch where you click). */
-    private val _touchMode = str("touchMode", MODE_TOUCHPAD); var touchMode get() = _touchMode.value; set(v) = set(_touchMode, "touchMode", v)
-    private val _pointerSpeed = float("pointerSpeed", 1.2f); var pointerSpeed get() = _pointerSpeed.value; set(v) = set(_pointerSpeed, "pointerSpeed", v)
-    private val _cursorScale = float("cursorScale", 1f); var cursorScale get() = _cursorScale.value; set(v) = set(_cursorScale, "cursorScale", v)
-    private val _extraKeys = bool("extraKeys", true); var extraKeys get() = _extraKeys.value; set(v) = set(_extraKeys, "extraKeys", v)
-    private val _keyLayout = str("keyLayout", DEFAULT_KEYS); var keyLayout get() = _keyLayout.value; set(v) = set(_keyLayout, "keyLayout", v)
-    private val _haptics = bool("haptics", true); var haptics get() = _haptics.value; set(v) = set(_haptics, "haptics", v)
+    var touchMode by pref("touchMode", MODE_TOUCHPAD)
+    var pointerSpeed by pref("pointerSpeed", 1.2f)
+    var cursorScale by pref("cursorScale", 1f)
+    var extraKeys by pref("extraKeys", true)
+    var keyLayout by pref("keyLayout", DEFAULT_KEYS)
+    var haptics by pref("haptics", true)
 
     // Integration.
-    private val _clipboard = bool("clipboard", true); var clipboardSync get() = _clipboard.value; set(v) = set(_clipboard, "clipboard", v)
-    private val _primary = bool("syncPrimary", false); var syncPrimary get() = _primary.value; set(v) = set(_primary, "syncPrimary", v)
+    var clipboardSync by pref("clipboard", true)
+    var syncPrimary by pref("syncPrimary", false)
 
     // Network.
-    /** Accept X11 connections from other devices on the network (only from [allowList]). */
-    private val _lan = bool("lan", false); var lanAccess get() = _lan.value; set(v) = set(_lan, "lan", v)
-    private val _allowList = str("allowList", ""); var allowList get() = _allowList.value; set(v) = set(_allowList, "allowList", v)
+    var lanAccess by pref("lan", false)
+    var allowList by pref("allowList", "")
 
     // Power.
-    private val _wakeLock = bool("wakeLock", false); var wakeLock get() = _wakeLock.value; set(v) = set(_wakeLock, "wakeLock", v)
-    /** Stop the server after this many minutes with no apps connected; 0 = never. */
-    private val _idleStop = int("idleStop", 0); var idleStopMinutes get() = _idleStop.value; set(v) = set(_idleStop, "idleStop", v)
+    var wakeLock by pref("wakeLock", false)
+    var idleStopMinutes by pref("idleStop", 0)
 
     // Look.
-    private val _dynamic = bool("dynamicColor", false); var dynamicColor get() = _dynamic.value; set(v) = set(_dynamic, "dynamicColor", v)
-    private val _contrast = bool("highContrast", false); var highContrast get() = _contrast.value; set(v) = set(_contrast, "highContrast", v)
+    /** "dark", "light", "amoled" or "system". */
+    var themeMode by pref("themeMode", "dark")
+    var accent by pref("accent", "Blue")
+    var dynamicColor by pref("dynamicColor", false)
+    var highContrast by pref("highContrast", false)
+    /** Multiplies text size in the app's own screens. */
+    var textScale by pref("textScale", 1f)
+    /** "auto" (rail on wide screens), "bottom" or "rail". */
+    var navLayout by pref("navLayout", "auto")
+    var showSplash by pref("showSplash", true)
+    /** Show settings meant for power users. */
+    var advanced by pref("advanced", false)
+
+    // Library.
+    var favorites by pref("favorites", emptySet<String>())
+    /** Recently opened app ids, newest first, comma separated. */
+    var recents by pref("recents", "")
+
+    /** The active Linux profile (a folder under files/profiles). */
+    var linuxProfile by pref("linuxProfile", "default")
 
     // Linux compatibility, set by Diagnostics when it finds what works on this phone.
-    private val _noSeccomp = bool("noSeccomp", false); var prootNoSeccomp get() = _noSeccomp.value; set(v) = set(_noSeccomp, "noSeccomp", v)
+    var prootNoSeccomp by pref("noSeccomp", false)
+
+    fun addRecent(id: String) { recents = (listOf(id) + recents.split(',').filter { it.isNotEmpty() && it != id }).take(8).joinToString(",") }
+    fun recentIds(): List<String> = recents.split(',').filter { it.isNotEmpty() }
+
+    /** The setting with this key, for generic screens (search, undo, reset). */
+    fun entry(key: String): Entry<*>? = entries[key]
+
+    /** Puts the given settings back to their defaults (all of them if [keys] is null), except first-run state. */
+    fun reset(keys: Collection<String>? = null) {
+        for ((k, e) in entries) if (k != "onboarded" && (keys == null || k in keys)) e.reset()
+    }
+
+    /** Settings as JSON, for export, backups and session profiles. */
+    fun toJson(keys: Collection<String>? = null): JSONObject = JSONObject().apply {
+        for ((k, e) in entries) {
+            if (k == "onboarded" || (keys != null && k !in keys)) continue
+            when (val v = e.state.value) { is Set<*> -> put(k, JSONArray(v.toList())); else -> put(k, v) }
+        }
+    }
+
+    /** Applies settings from JSON, ignoring unknown keys and wrong types. Returns how many were applied. */
+    @Suppress("UNCHECKED_CAST")
+    fun fromJson(json: JSONObject): Int {
+        var n = 0
+        for ((k, e) in entries) {
+            if (k == "onboarded" || !json.has(k)) continue
+            val ok = runCatching {
+                when (e.default) {
+                    is Boolean -> (e as Entry<Boolean>).write(json.getBoolean(k))
+                    is Int -> (e as Entry<Int>).write(json.getInt(k))
+                    is Float -> (e as Entry<Float>).write(json.getDouble(k).toFloat())
+                    is Set<*> -> { val a = json.getJSONArray(k); (e as Entry<Set<String>>).write((0 until a.length()).map { a.getString(it) }.toSet()) }
+                    else -> (e as Entry<String>).write(json.getString(k))
+                }
+            }.isSuccess
+            if (ok) n++
+        }
+        return n
+    }
 
     /** Screen size the server is created with. */
     fun screenSize(): Pair<Int, Int> {
@@ -110,6 +187,9 @@ class Prefs(context: Context) {
         else -> 96
     }
 
+    /** What the device's screen suggests: used by Display suggestions. */
+    fun recommendedDpi(): Int = (metrics.densityDpi * scale).roundToInt().coerceIn(96, 192)
+
     companion object {
         const val RES_NATIVE = "Native"
         const val RES_CUSTOM = "Custom"
@@ -117,5 +197,8 @@ class Prefs(context: Context) {
         const val MODE_DIRECT = "direct"
         const val DEFAULT_KEYS = "ESC TAB CTRL ALT SUPER SHIFT LEFT UP DOWN RIGHT HOME END PGUP PGDN DRAG FN KBD"
         val RESOLUTIONS = listOf(RES_NATIVE, "1280x720", "1600x900", "1920x1080", "1024x768", RES_CUSTOM)
+
+        @Volatile private var instance: Prefs? = null
+        fun of(context: Context): Prefs = instance ?: synchronized(this) { instance ?: Prefs(context).also { instance = it } }
     }
 }

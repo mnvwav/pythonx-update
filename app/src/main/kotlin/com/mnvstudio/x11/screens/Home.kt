@@ -90,7 +90,7 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
     Box(Modifier.fillMaxSize().background(Page)) {
         Box(Modifier.fillMaxWidth().height(260.dp).background(HeaderGlow))
         Column(
-            Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(Modifier.widthIn(max = 640.dp)) {
@@ -100,7 +100,7 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
                         Text("X11", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text("Linux apps on your phone", color = Label, fontSize = 12.sp)
                     }
-                    RoundIcon(Icons.AutoMirrored.Filled.MenuBook, "Guide") { navigate("guide") }
+                    RoundIcon(Icons.AutoMirrored.Filled.MenuBook, "Help") { navigate("help") }
                     Spacer(Modifier.width(8.dp))
                     RoundIcon(Icons.Filled.Settings, "Settings") { navigate("settings") }
                 }

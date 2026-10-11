@@ -34,7 +34,7 @@ class XService : Service() {
         channel()
         val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
         ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(XHolder.clients), type)
-        val prefs = Prefs(this)
+        val prefs = Prefs.of(this)
         if (!XHolder.start(this, prefs)) {
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()

@@ -1,6 +1,5 @@
 package com.mnvstudio.x11.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +63,6 @@ import com.mnvstudio.x11.ui.copyText
 /** Tests and repairs the built-in Linux, shows storage use and the app log. */
 @Composable
 fun DiagnosticsScreen(prefs: Prefs, onBack: () -> Unit) {
-    BackHandler(onBack = onBack)
     val context = LocalContext.current
     var checks by remember { mutableStateOf<List<Linux.Check>>(emptyList()) }
     var running by remember { mutableStateOf(false) }
