@@ -1,3 +1,2 @@
 /build
 # Downloaded at build time by the fetchProot task.
-/src/main/jniLibs/

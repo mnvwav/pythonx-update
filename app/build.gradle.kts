@@ -55,7 +55,8 @@ dependencies {
 
 // proot (GPL-2.0, https://proot-me.github.io) runs the built-in Alpine Linux without root. Static Android builds come
 // from green-green-avk/build-proot-android and are stored as jniLibs, the only place Android lets apps execute files.
-// Override the source with -PprootBaseUrl=... if needed.
+// They are checked into src/main/jniLibs, so normal builds need no network. If they're missing, this task downloads
+// them (GitHub, then the jsDelivr mirror) with timeouts; override the source with -PprootBaseUrl=... if needed.
 val prootAbis = mapOf("arm64-v8a" to "aarch64", "x86_64" to "x86_64")
 val prootBaseUrl = providers.gradleProperty("prootBaseUrl")
     .orElse("https://raw.githubusercontent.com/green-green-avk/build-proot-android/master/packages")
@@ -72,7 +73,16 @@ val fetchProot by tasks.registering {
             val dir = File(outDir, abi).apply { mkdirs() }
             if (File(dir, "libproot.so").exists()) continue
             val archive = File(temporaryDir, "proot-$arch.tar.gz")
-            uri("${base.get()}/proot-android-$arch.tar.gz").toURL().openStream().use { input -> archive.outputStream().use { input.copyTo(it) } }
+            val sources = listOf(base.get(), "https://cdn.jsdelivr.net/gh/green-green-avk/build-proot-android@master/packages")
+            val failures = mutableListOf<String>()
+            val ok = sources.any { src ->
+                runCatching {
+                    val c = uri("$src/proot-android-$arch.tar.gz").toURL().openConnection()
+                    c.connectTimeout = 20_000; c.readTimeout = 60_000
+                    c.getInputStream().use { input -> archive.outputStream().use { input.copyTo(it) } }
+                }.onFailure { failures += "$src: ${it.message}" }.isSuccess
+            }
+            if (!ok) error("Couldn't download proot (check internet/proxy in Android Studio → Settings → HTTP Proxy):\n" + failures.joinToString("\n"))
             val unpacked = File(temporaryDir, arch).apply { deleteRecursively() }
             project.copy { from(project.tarTree(project.resources.gzip(archive))); into(unpacked) }
             val files = unpacked.walkTopDown().filter { it.isFile }.toList()
