@@ -19,6 +19,10 @@ class XClient(
     /** Sequence number of the last request processed (16 bits on the wire). */
     var seq = 0; private set
     val idBase = index shl 21
+    /** Where the client connected from: "local" or a network address. */
+    var peer = "local"
+    @Volatile var requestCount = 0L; private set
+    @Volatile var errorCount = 0L; private set
     val idMask = 0x1FFFFF
     private val queue = LinkedBlockingQueue<ByteArray>()
     @Volatile private var closed = false
@@ -69,9 +73,13 @@ class XClient(
                 val req = Req(ByteBuffer.wrap(body).order(order))
                 synchronized(server) {
                     seq++
+                    requestCount++
+                    var err = 0
                     try { handle(req) }
-                    catch (e: XError) { error(e.code, e.value, req.opcode) }
-                    catch (e: IndexOutOfBoundsException) { error(Err.LENGTH, 0, req.opcode) }
+                    catch (e: XError) { err = e.code; error(e.code, e.value, req.opcode) }
+                    catch (e: IndexOutOfBoundsException) { err = Err.LENGTH; error(Err.LENGTH, 0, req.opcode) }
+                    if (err != 0) errorCount++
+                    Inspector.record(index, seq, req.opcode, req.size, err)
                 }
             }
         } catch (_: Exception) {

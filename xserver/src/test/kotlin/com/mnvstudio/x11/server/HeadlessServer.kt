@@ -33,6 +33,12 @@ fun main(args: Array<String>) {
             "type" -> parts[1].forEach { server.type(it.code) }
             "key" -> server.tapKeysym(parts[1].toInt(16))
             "clip" -> server.setClipboard(parts[1])
+            "wm" -> synchronized(server) { server.setWindowManager(parts[1] == "on") }
+            "press" -> server.button(parts[1].toInt(), true)
+            "release" -> server.button(parts[1].toInt(), false)
+            "desk" -> synchronized(server) { server.wm?.switchDesktop(parts[1].toInt()) }
+            "windows" -> println(synchronized(server) { server.wm?.windows() })
+            "keycode" -> parts[1].split(" ").let { server.key(it[0].toInt(), true); server.key(it[0].toInt(), false) }
             "clients" -> println("clients ${synchronized(server) { server.clients.size }}")
         }
     }

@@ -45,6 +45,17 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
 
     private var dirty: Rect? = null
 
+    /** The built-in window manager, when turned on (and no external window manager is running). */
+    var wm: WindowManager? = null; private set
+
+    @Synchronized
+    fun setWindowManager(on: Boolean) {
+        wm = if (on) (wm ?: WindowManager(this)) else null
+        damage(0, 0, width, height)
+    }
+
+    private fun activeWm(): WindowManager? = wm?.takeIf { !hasWindowManager() }
+
     // Input state.
     var pointerX = width / 2; private set
     var pointerY = height / 2; private set
@@ -100,7 +111,7 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
                     continue
                 }
                 s.tcpNoDelay = true
-                serve(s.getInputStream(), s.getOutputStream()) { runCatching { s.close() } }
+                serve(s.getInputStream(), s.getOutputStream(), if (from.isLoopbackAddress) "local" else from.hostAddress ?: "?") { runCatching { s.close() } }
             }
         }, "x11-accept-tcp").apply { isDaemon = true }.start()
     }
@@ -119,8 +130,8 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
     }
 
     /** Serves one client connection (any transport) on its own threads. */
-    fun serve(input: InputStream, output: OutputStream, close: () -> Unit) {
-        val (c, n) = synchronized(this) { XClient(this, nextClient++, input, output, close).also { clients += it } to clients.size }
+    fun serve(input: InputStream, output: OutputStream, peer: String = "local", close: () -> Unit) {
+        val (c, n) = synchronized(this) { XClient(this, nextClient++, input, output, close).also { it.peer = peer; clients += it } to clients.size }
         onClients?.invoke(n)
         c.start()
     }
@@ -198,7 +209,9 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
     }
 
     private fun damageWindow(w: Window) {
-        if (w.viewable) damage(w.absX - w.border, w.absY - w.border, w.width + 2 * w.border, w.height + 2 * w.border)
+        if (!w.viewable) return
+        damage(w.absX - w.border, w.absY - w.border, w.width + 2 * w.border, w.height + 2 * w.border)
+        activeWm()?.frame(w)?.let { damage(it.x, it.y, it.w, it.h) }
     }
 
     /**
@@ -220,7 +233,14 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
             val o = y * width
             for (x in r.x until r.x + r.w) framebuffer[o + x] = rp[o + x] or OPAQUE
         }
-        for (c in root.children) paint(c, r)
+        val m = activeWm()
+        for (c in root.children) {
+            if (m != null && c.mapped) {
+                if (m.hidden(c)) continue
+                m.drawFrame(framebuffer, width, c, r)
+            }
+            paint(c, r)
+        }
     }
 
     private fun paint(w: Window, clip: Rect) {
@@ -330,7 +350,11 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
             send(wm, 20) { it.i(4, w.parent!!.id).i(8, w.id) }
             return
         }
-        if (fitToScreen && w.parent === root && !w.overrideRedirect && !hasWindowManager() &&
+        val bwm = activeWm()
+        if (bwm != null && w.parent === root && !w.overrideRedirect) {
+            bwm.manage(w)
+            notifyConfigure(w)
+        } else if (fitToScreen && w.parent === root && !w.overrideRedirect && !hasWindowManager() &&
             (w.x != 0 || w.y != 0 || w.width != width || w.height != height || w.border != 0)) {
             w.x = 0; w.y = 0; w.border = 0
             w.resize(width, height)
@@ -376,6 +400,7 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
         deliver(w, Ev.STRUCTURE, 17) { it.i(4, w.id).i(8, w.id) }
         deliver(parent, Ev.SUBSTRUCTURE, 17) { it.i(4, parent.id).i(8, w.id) }
         resources.remove(w.id)
+        wm?.forget(w)
         if (focus == w.id) revertFocus()
         if (pointerGrab?.window === w) pointerGrab = null
         if (keyboardGrab?.window === w) keyboardGrab = null
@@ -410,7 +435,7 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
             return
         }
         // With no window manager, full-screen top-level windows stay full-screen.
-        val pinned = fitToScreen && w.parent === root && !w.overrideRedirect && !hasWindowManager()
+        val pinned = fitToScreen && w.parent === root && !w.overrideRedirect && !hasWindowManager() && activeWm() == null
         damageWindow(w)
         if (!pinned) {
             v[0x1]?.let { w.x = it.toShort().toInt() }
@@ -431,12 +456,48 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
                 else -> if (sib != null) sibs.add(sibs.indexOf(sib), w) else sibs.add(0, w)
             }
         }
+        activeWm()?.clientConfigured(w)
         notifyConfigure(w)
         if (resized && w.viewable) {
             clearBackground(w, 0, 0, w.width, w.height)
             sendExpose(w, 0, 0, w.width, w.height)
         }
         damageWindow(w)
+        updatePointerWindow()
+    }
+
+    /** Moves/resizes a window for the window manager (no redirect, no full-screen pinning). */
+    internal fun wmConfigure(w: Window, values: List<Pair<Int, Int>>) {
+        damageWindow(w)
+        val v = values.toMap()
+        v[0x1]?.let { w.x = it }; v[0x2]?.let { w.y = it }
+        val nw = (v[0x4] ?: w.width).coerceAtLeast(1); val nh = (v[0x8] ?: w.height).coerceAtLeast(1)
+        val resized = nw != w.width || nh != w.height
+        if (resized) w.resize(nw, nh)
+        notifyConfigure(w)
+        if (resized && w.viewable) { clearBackground(w, 0, 0, w.width, w.height); sendExpose(w, 0, 0, w.width, w.height) }
+        damageWindow(w)
+        updatePointerWindow()
+    }
+
+    /** Puts a top-level window above its siblings. */
+    internal fun wmRaise(w: Window) {
+        val sibs = w.parent?.children ?: return
+        if (sibs.lastOrNull() === w) return
+        sibs.remove(w); sibs.add(w)
+        notifyConfigure(w)
+        damageWindow(w)
+        updatePointerWindow()
+    }
+
+    /** After minimizing or switching desktop: move focus off hidden windows. */
+    internal fun refocusAfterWm() {
+        val m = activeWm() ?: return
+        val f = resources[focus] as? Window
+        if (f != null && generateSequence(f) { it.parent }.any { m.hidden(it) }) {
+            val top = root.children.lastOrNull { it.mapped && m.isManaged(it) && !m.hidden(it) }
+            setFocus(top?.id ?: 1, 1)
+        }
         updatePointerWindow()
     }
 
@@ -606,6 +667,7 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
         outer@ while (true) {
             for (c in w.children.asReversed()) {
                 if (!c.mapped) continue
+                if (w === root && activeWm()?.hidden(c) == true) continue
                 val ox = c.absX - c.border; val oy = c.absY - c.border
                 if (x >= ox && y >= oy && x < ox + c.width + 2 * c.border && y < oy + c.height + 2 * c.border) { w = c; continue@outer }
             }
@@ -720,12 +782,20 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
         return m
     }
 
+    /** Records and replays injected input. */
+    val recorder = InputRecorder(this)
+
+    /** WM_NAME of a window, for lists. */
+    fun windowTitle(w: Window): String = w.props[Atoms.WM_NAME]?.let { String(it.data, Charsets.ISO_8859_1) } ?: ""
+
     /** Moves the pointer to a screen position. */
     @Synchronized
     fun motion(x: Int, y: Int) {
+        recorder.motion(x, y)
         val nx = x.coerceIn(0, width - 1); val ny = y.coerceIn(0, height - 1)
         if (nx == pointerX && ny == pointerY) return
         pointerX = nx; pointerY = ny
+        if (activeWm()?.motion(nx, ny) == true) return
         updatePointerWindow()
         deliverDevice(windowAt(nx, ny), 6, motionMask(), 0, modState, pointerGrab)
     }
@@ -733,7 +803,10 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
     /** Presses or releases mouse button 1..5 (4/5 are scroll up/down). */
     @Synchronized
     fun button(b: Int, down: Boolean) {
+        recorder.button(b, down)
         val bit = 0x80 shl b
+        // The window manager sees presses first (title bars) and the release that ends its drag.
+        if (pointerGrab == null && (down || buttons and bit == 0) && activeWm()?.button(pointerX, pointerY, b, down) == true) return
         if (down == (buttons and bit != 0)) return
         val state = modState
         val src = windowAt(pointerX, pointerY)
@@ -758,8 +831,10 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
     @Synchronized
     fun key(code: Int, down: Boolean) {
         if (code !in 8..255) return
+        recorder.key(code, down)
         if (!down && !keysDown[code]) return
         val state = modState
+        if (down && keyboardGrab == null && activeWm()?.key(code, true, state) == true) return
         keysDown[code] = down
         if (down && code == Keyboard.CAPS) capsLock = !capsLock
         val f = when (focus) { 0 -> return; 1 -> root; else -> resources[focus] as? Window ?: root }
