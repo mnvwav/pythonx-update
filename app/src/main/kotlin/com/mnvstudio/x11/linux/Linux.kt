@@ -366,8 +366,8 @@ object Linux {
                 capture(app, "command -v xterm >/dev/null || { echo 'xterm not installed: install Terminal first'; exit 2; }; " +
                     "DISPLAY=127.0.0.1:$d timeout 5 xterm -fn 9x15 -e 'sleep 30' 2>&1; echo \"exit \$?\"") { _, o ->
                     val code = o.lastOrNull { it.startsWith("exit ") }?.removePrefix("exit ")?.trim()?.toIntOrNull() ?: -1
-                    // timeout kills a running xterm (124/143): that means the window stayed open.
-                    if (code == 124 || code == 143) set(6, true, "xterm ran for 5 s on :$d")
+                    // timeout kills a running xterm (busybox reports 15 or 143, coreutils 124): that means the window stayed open.
+                    if (code == 15 || code == 124 || code == 143) set(6, true, "xterm ran for 5 s on :$d")
                     else set(6, false, o.takeLast(6).joinToString(" · ").ifEmpty { "exit $code" })
                     finish()
                 }
