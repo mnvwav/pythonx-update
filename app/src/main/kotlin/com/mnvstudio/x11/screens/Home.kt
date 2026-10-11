@@ -183,8 +183,8 @@ private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
     val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
     val glow by pulse.animateFloat(0.35f, 1f, androidx.compose.animation.core.infiniteRepeatable(
         androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse), label = "glow")
-    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1C1C1F), Color(0xFF050505))))
-        .border(1.dp, com.mnvstudio.x11.ui.BrandAccent.copy(alpha = 0.35f), ShapeL).padding(20.dp)) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1E1D1F), Color(0xFF121213))))
+        .border(1.dp, com.mnvstudio.x11.ui.BrandAccent.copy(alpha = 0.22f), ShapeL).padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(10.dp).clip(CircleShape).background(if (running) Live.copy(alpha = glow) else Color.White.copy(alpha = 0.35f)))
             Text(if (running) "Display is on" else "Display is off", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,

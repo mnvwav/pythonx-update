@@ -34,12 +34,12 @@ import java.io.File
 
 /** Icon tiles are black like the logo, with a faint warm tint per category so groups still read apart. */
 private val CategoryGradients = mapOf(
-    "Desktops" to Color(0xFF3A141B), "Tools" to Color(0xFF1C2226), "Office" to Color(0xFF262019), "Developer" to Color(0xFF221C28),
-    "Graphics" to Color(0xFF2E161C), "Internet" to Color(0xFF16202A), "Classic" to Color(0xFF1E1E1E),
-).mapValues { (_, c) -> listOf(c, Color(0xFF070707)) }
+    "Desktops" to Color(0xFF2A2022), "Tools" to Color(0xFF1F2423), "Office" to Color(0xFF26231E), "Developer" to Color(0xFF232027),
+    "Graphics" to Color(0xFF282022), "Internet" to Color(0xFF1E2228), "Classic" to Color(0xFF212121),
+).mapValues { (_, c) -> listOf(c, Color(0xFF121213)) }
 
 /** Icons drawn on those tiles. */
-val TileIcon = Color(0xFFF4F5F7)
+val TileIcon = Color(0xFFECEBE8)
 
 fun categoryGradient(category: String) = CategoryGradients[category] ?: listOf(Color(0xFF1E1E1E), Color(0xFF070707))
 
@@ -61,7 +61,7 @@ fun AppIcon(app: LinuxApp, size: Dp = 42.dp) {
             Image(bmp, app.name, Modifier.size(size * 0.78f))
         }
     } else {
-        Box(Modifier.size(size).clip(shape).background(Brush.linearGradient(categoryGradient(app.category))).border(1.dp, Color(0xFFFF3D57).copy(alpha = 0.22f), shape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(size).clip(shape).background(Brush.linearGradient(categoryGradient(app.category))).border(1.dp, Color(0xFFFFFFFF).copy(alpha = 0.06f), shape), contentAlignment = Alignment.Center) {
             Icon(appIcon(app.id), null, tint = TileIcon, modifier = Modifier.size(size * 0.52f))
         }
     }

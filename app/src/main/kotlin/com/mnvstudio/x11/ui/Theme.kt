@@ -27,8 +27,8 @@ import com.mnvstudio.x11.R
 /*
  * Design language: "paper & ink", from the logo (a white page with a red and black X on a black tile).
  *  - Near-black surfaces in three steps (page, card, raised) with hairline borders instead of shadows.
- *  - Paper-white text; signal red for actions, selection and the brand; white icons on black tiles.
- *  - Green marks live things (running server, connected apps); coral marks problems, orange warnings.
+ *  - Soft off-white text; one muted crimson for actions, selection and the brand; nothing oversaturated.
+ *  - Status colors are desaturated too (sage green, sand, terracotta) so they inform without shouting.
  *  - Shapes: 12 (chips, keys) · 16 (rows, inputs) · 24 (cards) · pills for buttons.
  * Other accents and Material You stay available in Settings → Look.
  */
@@ -42,30 +42,30 @@ data class Palette(
 )
 
 private val Graphite = Palette(
-    page = Color(0xFF0A0A0A), card = Color(0xFF141414), raised = Color(0xFF1D1D1E), line = Color(0xFF2A2A2C),
-    ink = Color(0xFFF4F5F7), label = Color(0xFFAEB0B6), faint = Color(0xFF75777E),
-    accent = Color(0xFFFF3D57), onAccent = Color.White, accentSoft = Color(0xFF2E1418),
-    live = Color(0xFF5FD88A), bad = Color(0xFFFF6B6B), warn = Color(0xFFFFB547), code = Color(0xFF050505),
+    page = Color(0xFF111112), card = Color(0xFF18181A), raised = Color(0xFF202023), line = Color(0xFF2C2C30),
+    ink = Color(0xFFECEBE8), label = Color(0xFFA5A4A0), faint = Color(0xFF6F6E6B),
+    accent = Color(0xFFD45D68), onAccent = Color.White, accentSoft = Color(0xFF2A1C1F),
+    live = Color(0xFF7DBE95), bad = Color(0xFFE08A6E), warn = Color(0xFFD8AE6A), code = Color(0xFF0B0B0C),
 )
 
-private val Amoled = Graphite.copy(page = Color.Black, card = Color(0xFF0B0B0A), raised = Color(0xFF151513), line = Color(0xFF24221E), code = Color.Black)
+private val Amoled = Graphite.copy(page = Color.Black, card = Color(0xFF0E0E0F), raised = Color(0xFF17171A), line = Color(0xFF242427), code = Color.Black)
 
 private val Paper = Palette(
-    page = Color(0xFFF4F5F7), card = Color.White, raised = Color(0xFFEBECEF), line = Color(0xFFDCDDE2),
-    ink = Color(0xFF111111), label = Color(0xFF55575E), faint = Color(0xFF8A8C93),
-    accent = Color(0xFFE0243F), onAccent = Color.White, accentSoft = Color(0xFFFFE3E7),
-    live = Color(0xFF13A86B), bad = Color(0xFFD93A3A), warn = Color(0xFFC2620C), code = Color(0xFF16140F),
+    page = Color(0xFFF6F5F2), card = Color.White, raised = Color(0xFFEDECE8), line = Color(0xFFDFDDD8),
+    ink = Color(0xFF1A1A1B), label = Color(0xFF5C5B58), faint = Color(0xFF8F8D88),
+    accent = Color(0xFFAE3F4A), onAccent = Color.White, accentSoft = Color(0xFFF4E4E5),
+    live = Color(0xFF2E8A5A), bad = Color(0xFFB9532F), warn = Color(0xFF9A6A1E), code = Color(0xFF1A1A1B),
 )
 
 /** Accent choices in Settings, with the soft tint used behind selected items (dark, light). */
 val ACCENTS = mapOf(
-    "Red" to Color(0xFFFF3D57), "Gold" to Color(0xFFF7C948), "Blue" to Color(0xFF5B8CFF), "Violet" to Color(0xFF9B7BFF), "Teal" to Color(0xFF2EC4B6),
-    "Orange" to Color(0xFFFF8A3D), "Pink" to Color(0xFFFF5C9A), "Lime" to Color(0xFF9BD12E),
+    "Red" to Color(0xFFD45D68), "Gold" to Color(0xFFD6B26A), "Blue" to Color(0xFF7C9BD6), "Violet" to Color(0xFF9E8CCB), "Teal" to Color(0xFF6BB3A8),
+    "Orange" to Color(0xFFD99067), "Pink" to Color(0xFFCF7FA0), "Lime" to Color(0xFFA8BF6E),
 )
 
 private val HighContrast = Graphite.copy(
     page = Color.Black, card = Color(0xFF0C0C0C), raised = Color(0xFF161616), line = Color(0xFF8A8A8A),
-    ink = Color.White, label = Color(0xFFE2E2E2), faint = Color(0xFFBDBDBD), accent = Color(0xFFFF6B80), onAccent = Color.Black, accentSoft = Color(0xFF3A1018),
+    ink = Color.White, label = Color(0xFFE2E2E2), faint = Color(0xFFBDBDBD), accent = Color(0xFFF08A94), onAccent = Color.Black, accentSoft = Color(0xFF3A1E22),
 )
 
 private fun Palette.withDynamic(s: ColorScheme) = copy(accent = s.primary, onAccent = s.onPrimary, accentSoft = s.primaryContainer)
@@ -128,7 +128,7 @@ fun AppTheme(mode: String = "dark", accent: String = "Red", dynamic: Boolean = f
     var p = when { highContrast -> HighContrast; light -> Paper; mode == "amoled" -> Amoled; else -> Graphite }
     val a = ACCENTS[accent]
     if (a != null && !highContrast) {
-        val acc = if (light) a.darker().let { if (accent == "Red") Color(0xFFE0243F) else if (accent == "Gold") Color(0xFFB8860B) else it } else a
+        val acc = if (light) a.darker().let { if (accent == "Red") Color(0xFFAE3F4A) else if (accent == "Gold") Color(0xFFB8860B) else it } else a
         // Text on the accent: dark on bright accents (gold, lime), white on deep ones.
         p = p.copy(accent = acc, onAccent = if (acc.luminance() > 0.45f) Color(0xFF111111) else Color.White,
             accentSoft = a.copy(alpha = if (light) 0.16f else 0.16f).compositeOver(p.page))

@@ -175,7 +175,7 @@ fun SettingsScreen(prefs: Prefs, navigate: (String) -> Unit, onReplayOnboarding:
                         Column(Modifier.widthIn(max = 680.dp)) {
                             // Header in the brand style.
                             Row(Modifier.fillMaxWidth().clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(BrandGradient))
-                                .border(1.dp, BrandAccent.copy(alpha = 0.25f), ShapeL).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                                .border(1.dp, BrandAccent.copy(alpha = 0.18f), ShapeL).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Logo(52.dp)
                                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
                                     Text("X11", color = BrandAccent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
