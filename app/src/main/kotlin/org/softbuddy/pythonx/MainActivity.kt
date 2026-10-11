@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
         intent?.getStringExtra(EXTRA_ROUTE)?.let { pendingRoute = it; return }
         val uri = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.data
-            Intent.ACTION_SEND -> @Suppress("DEPRECATION") (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))
+            Intent.ACTION_SEND -> androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
             else -> null
         } ?: return
         lifecycleScope.launch {

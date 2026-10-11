@@ -507,8 +507,8 @@ fun ProjectsTab(navigate: (String) -> Unit) {
     val exportZip = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         val p = exporting; exporting = null
         if (uri != null && p != null) scope.launch(Dispatchers.IO) {
-            context.contentResolver.openOutputStream(uri)!!.use { p.exportZip(it) }
-            withContext(Dispatchers.Main) { Toast.makeText(context, "Exported ${p.name}.zip", Toast.LENGTH_SHORT).show() }
+            val ok = runCatching { context.contentResolver.openOutputStream(uri)!!.use { p.exportZip(it) } }.isSuccess
+            withContext(Dispatchers.Main) { Toast.makeText(context, if (ok) "Exported ${p.name}.zip" else "Couldn't export ${p.name}", Toast.LENGTH_SHORT).show() }
         }
     }
     val importZip = rememberImportZip(navigate)
