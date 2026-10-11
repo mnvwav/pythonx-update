@@ -46,6 +46,14 @@ fun GuideScreen(prefs: Prefs, onBack: () -> Unit) {
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 640.dp)) {
+                SectionTitle("Built-in Linux (no other apps needed)")
+                SurfaceCard {
+                    Step(1, "Home → Linux apps → Download & set up")
+                    Step(2, "Tap an app to install it, tap again to open it")
+                    Step(3, "Or type any command, e.g. apk add xterm")
+                    Text("It's Alpine Linux running in proot: no root, everything stays inside this app.", color = Label, fontSize = 13.sp)
+                }
+
                 SectionTitle("Termux")
                 SurfaceCard {
                     Step(1, "Install the X11 repository and an app")

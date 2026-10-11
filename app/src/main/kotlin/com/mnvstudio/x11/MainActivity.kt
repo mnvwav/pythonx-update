@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.runtime.LaunchedEffect
+import com.mnvstudio.x11.screens.AppsScreen
 import com.mnvstudio.x11.screens.DisplayScreen
 import com.mnvstudio.x11.screens.GuideScreen
 import com.mnvstudio.x11.screens.HomeScreen
@@ -95,6 +96,7 @@ class MainActivity : ComponentActivity() {
                             "display" -> DisplayScreen(prefs, back)
                             "settings" -> SettingsScreen(prefs, onReplayOnboarding = { stack.clear(); stack += "home"; onboarding = true }, onBack = back)
                             "guide" -> GuideScreen(prefs, back)
+                            "apps" -> AppsScreen(prefs, go, back)
                             else -> HomeScreen(prefs, go)
                         }
                     }

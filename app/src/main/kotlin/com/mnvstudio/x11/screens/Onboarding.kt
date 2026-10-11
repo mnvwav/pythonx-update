@@ -41,8 +41,10 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +63,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.mnvstudio.x11.Prefs
+import com.mnvstudio.x11.linux.Linux
+import com.mnvstudio.x11.ui.Bad
 import com.mnvstudio.x11.TermuxCommand
 import com.mnvstudio.x11.ui.BrandGradient
 import com.mnvstudio.x11.ui.Card
@@ -208,28 +212,33 @@ private fun HowItWorks() {
 
 @Composable
 private fun SetupApps(prefs: Prefs) {
-    Title("Connect your apps", "Copy these into Termux. Tap a command to copy it.")
-    SectionTitle("Termux")
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { Linux.check(context) }
+    Title("Linux apps, built in", "This app carries its own small Linux. Download it once and install apps with a tap.")
     SurfaceCard(Modifier.padding(bottom = 12.dp)) {
-        CommandBlock("pkg install x11-repo && pkg install xterm", caption = "1. Install an X11 app")
-        Spacer(Modifier.height(14.dp))
-        CommandBlock("export DISPLAY=:${prefs.display}", caption = "2. Point apps at this display")
-        Spacer(Modifier.height(14.dp))
-        CommandBlock("xterm &", caption = "3. Launch it")
+        when (Linux.state) {
+            Linux.State.READY -> Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CheckCircle, null, tint = Good)
+                Text("Linux is ready", color = Ink, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 10.dp))
+            }
+            Linux.State.INSTALLING -> {
+                Text(Linux.status, color = Label, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
+                LinearProgressIndicator(progress = { Linux.progress }, modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Violet, trackColor = CardHigh)
+            }
+            else -> {
+                Text("Alpine Linux · about 4 MB", color = Ink, fontWeight = FontWeight.SemiBold)
+                Text("You can keep going while it downloads.", color = Label, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
+                if (Linux.state == Linux.State.FAILED) Text(Linux.status, color = Bad, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
+                PrimaryButton("Download Linux", Modifier.fillMaxWidth(), enabled = Linux.prootAvailable(context)) { Linux.install(context) }
+            }
+        }
     }
-    SectionTitle("Faster: the mnvx11 command")
-    SurfaceCard(Modifier.padding(bottom = 12.dp)) {
-        CommandBlock(TermuxCommand.install, caption = "Install once")
-        Spacer(Modifier.height(14.dp))
-        CommandBlock("mnvx11 :${prefs.display} xterm", caption = "Starts the server and runs the app")
-    }
-    SectionTitle("Debian / Ubuntu (proot-distro)")
+    SectionTitle("Already use Termux?")
     SurfaceCard {
-        CommandBlock("apt install x11-apps xterm", caption = "Inside the distro")
+        CommandBlock(TermuxCommand.install, caption = "Install the mnvx11 command")
         Spacer(Modifier.height(14.dp))
-        CommandBlock("DISPLAY=:${prefs.display} xeyes &")
+        CommandBlock("mnvx11 :${prefs.display} xterm", caption = "Then start apps from Termux")
     }
-    Text("Apps can also connect over TCP at 127.0.0.1:${prefs.display}.", color = Faint, fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
 }
 
 @Composable
@@ -289,7 +298,7 @@ private fun ColumnScope.Ready(prefs: Prefs) {
     }
     Text("You're ready", color = Ink, fontSize = 30.sp, fontWeight = FontWeight.Bold,
         modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 28.dp))
-    Text("Start the server, then launch an app with", color = Label, fontSize = 15.sp, textAlign = TextAlign.Center,
+    Text("Open Linux apps from the home screen, or launch from Termux with", color = Label, fontSize = 15.sp, textAlign = TextAlign.Center,
         modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp))
     Spacer(Modifier.height(16.dp))
     CommandBlock("DISPLAY=:${prefs.display} xterm &")

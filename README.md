@@ -12,7 +12,13 @@ An X11 display server for Android. Run Linux GUI apps from Termux or a proot dis
   - Settings and a guide
   - A foreground service that keeps the server running
 
-## Connecting apps
+## Built-in Linux
+
+The app can run Linux apps by itself, without Termux. It downloads Alpine Linux's minimal root filesystem (about 4 MB) on first use and runs it with [proot](https://proot-me.github.io) (GPL-2.0), with no root needed. The **Linux apps** screen installs apps with `apk` and opens them on the display. It also has a command box for anything else.
+
+proot isn't stored in the repository. The `fetchProot` Gradle task downloads static Android builds from `green-green-avk/build-proot-android` into `app/src/main/jniLibs` before each build (you can change the source with `-PprootBaseUrl=...`). The binaries are packaged as `libproot.so` and `libproot-loader.so`, because Android only lets apps execute files from their native library directory.
+
+## Connecting apps from Termux
 
 Start the server in the app, then in Termux:
 

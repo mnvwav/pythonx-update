@@ -19,7 +19,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.PlayArrow
@@ -125,7 +127,24 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
                 }
 
                 Spacer(Modifier.height(20.dp))
-                SectionTitle("Launch from Termux")
+                SectionTitle("Linux apps")
+                Row(
+                    Modifier.fillMaxWidth().clip(ShapeL).background(Brush.linearGradient(listOf(Color(0xFF14304A), Card)))
+                        .border(1.dp, Line, ShapeL).clickable { navigate("apps") }.padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(48.dp).clip(ShapeM).background(Cyan.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.Apps, null, tint = Cyan)
+                    }
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                        Text("Install & open apps", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Built-in Linux: terminal, calculator, editor and more, right here", color = Label, fontSize = 13.sp)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Label)
+                }
+
+                Spacer(Modifier.height(20.dp))
+                SectionTitle("Or launch from Termux")
                 SurfaceCard {
                     Text("Install the mnvx11 command once (paste into Termux):", color = Label, fontSize = 14.sp)
                     Spacer(Modifier.height(12.dp))
