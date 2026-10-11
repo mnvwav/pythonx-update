@@ -135,6 +135,7 @@ object Linux {
         File(root, "etc/hosts").writeText("127.0.0.1 localhost\n::1 localhost\n")
         File(root, "tmp/.X11-unix").mkdirs()
         File(root, "root/Shared").mkdirs()
+        com.mnvstudio.x11.bridge.Bridge.installShims(root)
     }
 
     private fun download(url: String, to: File, progress: (Float) -> Unit) {
@@ -165,6 +166,7 @@ object Linux {
     fun run(context: Context, command: String, display: Int, jobName: String? = null, env: Map<String, String> = emptyMap(),
             onOutput: (String) -> Unit = {}, onExit: (Int) -> Unit = {}): Process? {
         val app = context.applicationContext
+        com.mnvstudio.x11.bridge.Bridge.ensure(app)
         val lib = app.applicationInfo.nativeLibraryDir
         val root = rootfs(app)
         val tmp = File(app.cacheDir, "proot").apply { mkdirs() }
@@ -176,6 +178,7 @@ object Linux {
             "$lib/libproot.so", "--kill-on-exit", "-0", "--link2symlink",
             "-r", root.path,
             "-b", "/dev", "-b", "/proc", "-b", "/sys", "-b", "${File(root, "tmp").path}:/dev/shm",
+        ) + com.mnvstudio.x11.bridge.PhoneStorage.binds(app, root) + listOf(
             "-w", "/root",
             "/bin/sh", "-lc", shellCommand,
         )

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Linux files the bridge hands to Android apps (xdg-open, android open/share). -->
+<paths>
+    <files-path name="linux" path="profiles/" />
+    <files-path name="rootfs" path="rootfs/" />
+</paths>

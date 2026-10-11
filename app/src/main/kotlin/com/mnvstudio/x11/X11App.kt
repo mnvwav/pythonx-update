@@ -8,6 +8,7 @@ class X11App : Application() {
     override fun onCreate() {
         super.onCreate()
         AppLog.init(this)
+        runCatching { com.mnvstudio.x11.bridge.Bridge.ensure(this) }
         // The paper-and-ink redesign: move everyone to the red accent once (they can pick another in Settings).
         Prefs.of(this).let { p -> if (!p.brandGold) { p.accent = "Red"; p.brandGold = true } }
         AppLog.i("X11 started on Android ${Build.VERSION.RELEASE} (${Build.MANUFACTURER} ${Build.MODEL}, ${Build.SUPPORTED_ABIS.firstOrNull()})")
