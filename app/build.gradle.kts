@@ -13,8 +13,8 @@ android {
         applicationId = "org.softbuddy.pythonx"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "3.0"
+        versionCode = 4
+        versionName = "3.1"
         // The official CPython Android builds exist for these two ABIs only.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
@@ -48,8 +48,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
