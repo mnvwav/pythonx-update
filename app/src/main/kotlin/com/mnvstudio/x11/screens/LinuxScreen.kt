@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Insights
@@ -76,6 +77,7 @@ private val TOOLS = listOf(
     "Display" to listOf(
         Tool("windows", Icons.Filled.Window, "Windows", "Switcher, desktops, per-app rules"),
         Tool("inspector", Icons.Filled.Insights, "X11 Inspector", "Clients, requests, extensions, recorder"),
+        Tool("input", Icons.Filled.TouchApp, "Input & controls", "Gestures, keys, stylus, gamepad, per-app"),
     ),
     "Fix" to listOf(
         Tool("diagnostics", Icons.Filled.HealthAndSafety, "Diagnostics", "Self-test, repair and logs"),

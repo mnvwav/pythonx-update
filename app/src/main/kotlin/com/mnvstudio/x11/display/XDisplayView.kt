@@ -247,9 +247,15 @@ class XDisplayView(context: Context) : FrameLayout(context) {
             moveTo(0f, 0f); lineTo(0f, 22f); lineTo(6f, 17f); lineTo(10f, 26f); lineTo(14f, 24f); lineTo(10f, 15f); lineTo(17f, 15f); close()
         }
 
+        private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+
         override fun onDraw(canvas: Canvas) {
             val s = server ?: return
-            if (directTouch) return
+            if (directTouch || !input.showPointer) return
+            if (input.trail) trail.forEachIndexed { i, (x, y) ->
+                trailPaint.alpha = 30 + i * 12
+                canvas.drawCircle(offX + x * sx, offY + y * sy, (2 + i * 0.4f) * resources.displayMetrics.density, trailPaint)
+            }
             canvas.save()
             canvas.translate(offX + s.pointerX * sx, offY + s.pointerY * sy)
             val c = resources.displayMetrics.density * 0.9f * cursorScale
@@ -262,18 +268,28 @@ class XDisplayView(context: Context) : FrameLayout(context) {
 
     // ---------------------------------------------------------------- touch
 
-    private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    /** Gesture and pointer settings; replaced when settings or the focused app change. */
+    var input = InputConfig()
+    /** UI actions (keyboard, switcher, menu, leave) requested by gestures, handled by the screen. */
+    var onAction: (Action) -> Unit = {}
+    /** Called with input-to-screen latency samples in ms (touch latency calibration). */
+    var onLatency: ((Float) -> Unit)? = null
+
+    private val density = resources.displayMetrics.density
     private var downX = 0f; private var downY = 0f; private var lastX = 0f; private var lastY = 0f
+    private var lastMoveTime = 0L
     private var downTime = 0L
     private var moved = false
     private var maxPointers = 0
     private var dragging = false
     private var scrollAcc = 0f
     private var fracX = 0f; private var fracY = 0f
-    // Two-finger gesture state: pinch zoom versus scroll is decided by how much the fingers spread.
+    private var ignoring = false
+    // Multi-finger gesture state: pinch zoom versus scroll is decided by how much the fingers spread.
     private var startSpan = 0f
     private var startZoom = 1f
     private var focusX = 0f; private var focusY = 0f
+    private var startFocusY = 0f
     private var pinching = false
     private val longPress = Runnable {
         if (!moved && maxPointers == 1 && !directTouch) {
@@ -285,38 +301,71 @@ class XDisplayView(context: Context) : FrameLayout(context) {
 
     override fun onInterceptTouchEvent(ev: MotionEvent) = true
 
+    /** Runs a gesture's action: clicks go to X, the rest to the screen. */
+    fun perform(a: Action) {
+        val s = server ?: return
+        when (a) {
+            Action.NONE -> {}
+            Action.LEFT -> s.click(1)
+            Action.RIGHT -> s.click(3)
+            Action.MIDDLE -> s.click(2)
+            Action.DOUBLE -> { s.click(1); postDelayed({ server?.click(1) }, input.doubleClickMs.toLong()) }
+            Action.ESCAPE -> tapKey(KeyMap.ESC)
+            Action.ENTER -> tapKey(KeyMap.ENTER)
+            else -> onAction(a)
+        }
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val s = server ?: return false
-        if (e.isFromSource(InputDevice.SOURCE_MOUSE)) return mouse(e, s)
+        if (e.isFromSource(InputDevice.SOURCE_MOUSE) && e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE) return mouse(e, s)
+        if (e.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) return stylus(e, s)
+        onLatency?.let { cb -> val t = e.eventTime; postOnAnimation { cb((android.os.SystemClock.uptimeMillis() - t).toFloat()) } }
+        val slop = input.dragSlopDp * density
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // Edge rejection: touches that start at the screen edges are ignored (gesture navigation, grip).
+                val edge = input.edgeRejectDp * density
+                ignoring = edge > 0 && (e.x < edge || e.x > width - edge || e.y < edge || e.y > height - edge)
+                // Palm rejection: very large contact areas are a palm, not a finger.
+                if (input.palmReject && e.getTouchMajor(0) > 80 * density) ignoring = true
+                if (ignoring) return true
                 requestFocus()
                 downX = e.x; downY = e.y; lastX = e.x; lastY = e.y
-                downTime = SystemClock.uptimeMillis()
+                downTime = SystemClock.uptimeMillis(); lastMoveTime = downTime
                 moved = false; maxPointers = 1; dragging = false; scrollAcc = 0f; pinching = false
                 if (directTouch) { s.motion(toScreenX(e.x), toScreenY(e.y)); s.button(1, true) }
-                else postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
+                else postDelayed(longPress, input.longPressMs.toLong())
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
+                if (ignoring) return true
                 maxPointers = max(maxPointers, e.pointerCount)
                 removeCallbacks(longPress)
                 // A second finger turns a direct press into a gesture.
                 if (directTouch && !moved) s.button(1, false)
                 startSpan = span(e); startZoom = zoom
-                focusX = avg(e, true); focusY = avg(e, false)
+                focusX = avg(e, true); focusY = avg(e, false); startFocusY = focusY
                 lastY = focusY
             }
             MotionEvent.ACTION_MOVE -> {
+                if (ignoring) return true
                 if (!moved && hypot(e.x - downX, e.y - downY) > slop) { moved = true; removeCallbacks(longPress) }
                 if (e.pointerCount == 2) twoFingers(e, s)
+                else if (e.pointerCount >= 3) { if (abs(avg(e, false) - startFocusY) > slop * 3) moved = true }
                 else if (e.pointerCount == 1 && maxPointers == 1) {
                     if (directTouch) s.motion(toScreenX(e.x), toScreenY(e.y))
                     else if (moved) {
-                        fracX += (e.x - lastX) * pointerSpeed / sx; fracY += (e.y - lastY) * pointerSpeed / sy
-                        val dx = fracX.toInt(); val dy = fracY.toInt()
-                        fracX -= dx; fracY -= dy
-                        if (dx != 0 || dy != 0) s.motion(s.pointerX + dx, s.pointerY + dy)
+                        // Acceleration: speed (px per ms) boosts the distance on a smooth curve.
+                        val now = SystemClock.uptimeMillis()
+                        val dx = e.x - lastX; val dy = e.y - lastY
+                        val speed = hypot(dx, dy) / (now - lastMoveTime).coerceAtLeast(1)
+                        val gain = pointerSpeed * (1f + input.accel * (speed / density).coerceAtMost(3f))
+                        lastMoveTime = now
+                        fracX += dx * gain / sx; fracY += dy * gain / sy
+                        val ix = fracX.toInt(); val iy = fracY.toInt()
+                        fracX -= ix; fracY -= iy
+                        if (ix != 0 || iy != 0) { s.motion(s.pointerX + ix, s.pointerY + iy); addTrail(s) }
                     }
                     lastX = e.x; lastY = e.y
                     cursorView.invalidate()
@@ -324,11 +373,18 @@ class XDisplayView(context: Context) : FrameLayout(context) {
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPress)
+                if (ignoring) { ignoring = false; return true }
                 val quick = SystemClock.uptimeMillis() - downTime < 300
                 when {
                     e.actionMasked == MotionEvent.ACTION_CANCEL -> s.button(1, false)
-                    maxPointers >= 3 && !moved && quick -> s.click(2)
-                    maxPointers == 2 && !moved && quick -> { s.button(1, false); s.click(3) }
+                    maxPointers >= 3 && moved -> {
+                        // Three-finger swipe up or down.
+                        val dy = avg(e, false) - startFocusY
+                        perform(if (dy < 0) input.swipe3Up else input.swipe3Down)
+                    }
+                    maxPointers == 4 && quick -> perform(input.tap4)
+                    maxPointers == 3 && quick -> perform(input.tap3)
+                    maxPointers == 2 && !moved && quick -> { s.button(1, false); perform(input.tap2) }
                     directTouch || dragging -> s.button(1, false)
                     !moved && quick && maxPointers == 1 -> s.click(1)
                 }
@@ -345,7 +401,6 @@ class XDisplayView(context: Context) : FrameLayout(context) {
         if (pinching) {
             moved = true
             val newZoom = (startZoom * sp / startSpan).coerceIn(1f, 6f)
-            // Keep the content under the fingers' midpoint while zooming and follow its movement.
             val k = newZoom / zoom
             panX = (panX - (focusX - width / 2f)) * k + (focusX - width / 2f) + (fx - focusX)
             panY = (panY - (focusY - height / 2f)) * k + (focusY - height / 2f) + (fy - focusY)
@@ -355,7 +410,7 @@ class XDisplayView(context: Context) : FrameLayout(context) {
             return
         }
         scrollAcc += fy - lastY; lastY = fy
-        val step = 28 * resources.displayMetrics.density
+        val step = 28 * density
         while (abs(scrollAcc) >= step) {
             // Fingers moving up scroll the content down, like a phone.
             s.click(if (scrollAcc < 0) 5 else 4)
@@ -366,6 +421,18 @@ class XDisplayView(context: Context) : FrameLayout(context) {
 
     private fun avg(e: MotionEvent, x: Boolean): Float { var v = 0f; for (i in 0 until e.pointerCount) v += if (x) e.getX(i) else e.getY(i); return v / e.pointerCount }
     private fun span(e: MotionEvent): Float = if (e.pointerCount < 2) 0f else hypot(e.getX(0) - e.getX(1), e.getY(0) - e.getY(1))
+
+    /** A stylus points directly; its side button does the configured action (right click by default). */
+    private fun stylus(e: MotionEvent, s: XServer): Boolean {
+        s.motion(toScreenX(e.x), toScreenY(e.y))
+        val side = e.buttonState and (MotionEvent.BUTTON_STYLUS_PRIMARY or MotionEvent.BUTTON_SECONDARY) != 0
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> if (side) perform(input.stylusButton) else s.button(1, true)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> s.button(1, false)
+        }
+        cursorView.invalidate()
+        return true
+    }
 
     /** A real mouse moves the X pointer directly. */
     private fun mouse(e: MotionEvent, s: XServer): Boolean {
@@ -380,8 +447,33 @@ class XDisplayView(context: Context) : FrameLayout(context) {
         return true
     }
 
+    // ---- Pointer capture (mouse lock) for games and 3D apps: the mouse sends relative movement.
+
+    val captured get() = hasPointerCapture()
+    fun capturePointer(on: Boolean) { if (on) requestPointerCapture() else releasePointerCapture() }
+
+    override fun onCapturedPointerEvent(e: MotionEvent): Boolean {
+        val s = server ?: return false
+        if (e.actionMasked == MotionEvent.ACTION_MOVE) {
+            s.motion(s.pointerX + e.x.toInt(), s.pointerY + e.y.toInt())
+        } else if (e.actionMasked == MotionEvent.ACTION_BUTTON_PRESS || e.actionMasked == MotionEvent.ACTION_BUTTON_RELEASE) {
+            val b = when (e.actionButton) { MotionEvent.BUTTON_SECONDARY -> 3; MotionEvent.BUTTON_TERTIARY -> 2; else -> 1 }
+            s.button(b, e.actionMasked == MotionEvent.ACTION_BUTTON_PRESS)
+        } else if (e.actionMasked == MotionEvent.ACTION_SCROLL) {
+            val v = e.getAxisValue(MotionEvent.AXIS_VSCROLL); if (v != 0f) s.click(if (v > 0) 4 else 5)
+        }
+        cursorView.invalidate()
+        return true
+    }
+
     override fun onGenericMotionEvent(e: MotionEvent): Boolean {
         val s = server ?: return false
+        // Game controller sticks: the left stick moves the pointer.
+        if (e.isFromSource(InputDevice.SOURCE_JOYSTICK) && e.actionMasked == MotionEvent.ACTION_MOVE && input.stickMouse) {
+            val x = e.getAxisValue(MotionEvent.AXIS_X); val y = e.getAxisValue(MotionEvent.AXIS_Y)
+            if (abs(x) > 0.15f || abs(y) > 0.15f) { s.motion(s.pointerX + (x * 14).toInt(), s.pointerY + (y * 14).toInt()); cursorView.invalidate() }
+            return true
+        }
         when (e.actionMasked) {
             MotionEvent.ACTION_HOVER_MOVE -> { s.motion(toScreenX(e.x), toScreenY(e.y)); cursorView.invalidate(); return true }
             MotionEvent.ACTION_SCROLL -> {
@@ -391,6 +483,14 @@ class XDisplayView(context: Context) : FrameLayout(context) {
             }
         }
         return super.onGenericMotionEvent(e)
+    }
+
+    // ---- Pointer trail: the last positions fade out behind the cursor.
+
+    private val trail = ArrayDeque<Pair<Int, Int>>()
+    private fun addTrail(s: XServer) {
+        if (!input.trail) return
+        trail.addLast(s.pointerX to s.pointerY); while (trail.size > 12) trail.removeFirst()
     }
 
     // ---------------------------------------------------------------- keyboard
@@ -419,9 +519,29 @@ class XDisplayView(context: Context) : FrameLayout(context) {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean = key(keyCode, event, true) || super.onKeyDown(keyCode, event)
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean = key(keyCode, event, false) || super.onKeyUp(keyCode, event)
 
+    /** Hardware keyboard shortcuts for the app itself (Ctrl+Alt+…), when enabled. */
+    var appShortcuts = true
+
     private fun key(keyCode: Int, event: KeyEvent, down: Boolean): Boolean {
         val s = server ?: return false
         if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) return false
+        // Game controllers: mapped buttons send keys; shoulder buttons click.
+        if (event.isFromSource(InputDevice.SOURCE_GAMEPAD) || KeyEvent.isGamepadButton(keyCode)) {
+            input.gamepad[keyCode]?.let { s.key(it, down); return true }
+            when (keyCode) {
+                KeyEvent.KEYCODE_BUTTON_L1 -> { s.button(1, down); return true }
+                KeyEvent.KEYCODE_BUTTON_R1 -> { s.button(3, down); return true }
+            }
+        }
+        // App shortcuts: Ctrl+Alt+K keyboard, W windows, M menu, Q leave, L release the mouse lock.
+        if (appShortcuts && event.isCtrlPressed && event.isAltPressed) {
+            val a = when (keyCode) {
+                KeyEvent.KEYCODE_K -> Action.KEYBOARD; KeyEvent.KEYCODE_W -> Action.SWITCHER; KeyEvent.KEYCODE_M -> Action.MENU
+                KeyEvent.KEYCODE_Q -> Action.LEAVE; KeyEvent.KEYCODE_L -> { if (down) capturePointer(false); return true }
+                else -> null
+            }
+            if (a != null) { if (down) onAction(a); return true }
+        }
         // Physical keyboards with a non-US layout: send the character the key produces, not the US key in that spot.
         val ch = event.unicodeChar
         val usLetterOrDigit = keyCode in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z || keyCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9

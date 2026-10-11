@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mouse
@@ -134,6 +135,16 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
         (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
     }
 
+    // Per-app input profiles follow the focused window.
+    var appClass by remember { mutableStateOf("") }
+    LaunchedEffect(server) {
+        while (true) {
+            appClass = synchronized(server) { server.wm?.windows()?.firstOrNull { it.focused }?.appClass } ?: ""
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+    var mouseLocked by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().background(Color.Black).imePadding()) {
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             // Follow rotation: when the phone's shape no longer matches the display's, restart it at the new size.
@@ -159,6 +170,17 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                     v.keepScreenOn = prefs.keepScreenOn
                     v.stickyMods = { sticky.active() }
                     v.onStickyUsed = { sticky.used() }
+                    v.input = com.mnvstudio.x11.display.InputConfig.from(prefs, appClass)
+                    v.appShortcuts = prefs.appShortcuts
+                    v.onAction = { a ->
+                        when (a) {
+                            com.mnvstudio.x11.display.Action.KEYBOARD -> showKeyboard()
+                            com.mnvstudio.x11.display.Action.SWITCHER -> switcher = true
+                            com.mnvstudio.x11.display.Action.MENU -> menu = true
+                            com.mnvstudio.x11.display.Action.LEAVE -> onBack()
+                            else -> {}
+                        }
+                    }
                     v.onFps = if (prefs.perfOverlay) { f -> fps = f } else null
                 },
                 onRelease = { it.server = null },
@@ -193,6 +215,9 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                         prefs.touchMode = if (prefs.touchMode == Prefs.MODE_DIRECT) Prefs.MODE_TOUCHPAD else Prefs.MODE_DIRECT
                     }
                     MenuItem(Icons.Filled.Window, "Windows & desktops") { menu = false; switcher = true }
+                    MenuItem(Icons.Filled.Mouse, if (mouseLocked) "Release mouse" else "Lock mouse") {
+                        menu = false; mouseLocked = !mouseLocked; view?.capturePointer(mouseLocked)
+                    }
                     MenuItem(Icons.Filled.ZoomOutMap, "Reset zoom") { menu = false; view?.resetZoom() }
                     MenuItem(Icons.Filled.PhotoCamera, "Screenshot") {
                         menu = false
@@ -209,7 +234,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
         }
         if (prefs.extraKeys) {
             Box(Modifier.navigationBarsPadding()) {
-                ExtraKeysBar(prefs.keyLayout, sticky, view = { view }, onKeyboard = { showKeyboard() }, onRightClick = { server.click(3) })
+                ExtraKeysBar(com.mnvstudio.x11.display.AppProfiles.get(prefs, appClass)["keys"] ?: prefs.keyLayout, sticky, view = { view }, onKeyboard = { showKeyboard() }, onRightClick = { server.click(3) })
             }
         }
     }

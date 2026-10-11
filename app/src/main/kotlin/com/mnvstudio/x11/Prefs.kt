@@ -99,6 +99,28 @@ class Prefs private constructor(context: Context) {
     var extraKeys by pref("extraKeys", true)
     var keyLayout by pref("keyLayout", DEFAULT_KEYS)
     var haptics by pref("haptics", true)
+    // Gestures (Action names, see display/InputConfig).
+    var gestureTap2 by pref("gesture2", "RIGHT")
+    var gestureTap3 by pref("gesture3", "MIDDLE")
+    var gestureTap4 by pref("gesture4", "KEYBOARD")
+    var gestureSwipeUp by pref("swipe3Up", "SWITCHER")
+    var gestureSwipeDown by pref("swipe3Down", "KEYBOARD")
+    var longPressMs by pref("longPressMs", 400)
+    var dragSlop by pref("dragSlop", 8)
+    var doubleClickMs by pref("doubleClickMs", 80)
+    var mouseAccel by pref("mouseAccel", 0.6f)
+    var edgeReject by pref("edgeReject", 0)
+    var palmReject by pref("palmReject", true)
+    var stylusButton by pref("stylusButton", "RIGHT")
+    var showPointer by pref("showPointer", true)
+    var pointerTrail by pref("pointerTrail", false)
+    /** Game controller overrides: "A=ENTER,B=ESC,…" (X key names from the extra keys list, or X keycodes). */
+    var gamepadMap by pref("gamepadMap", "")
+    var stickMouse by pref("stickMouse", true)
+    /** Per-app input profiles (see display/AppProfiles). */
+    var appInput by pref("appInput", "")
+    /** Android-side shortcuts on a hardware keyboard (Ctrl+Alt+…): on/off. */
+    var appShortcuts by pref("appShortcuts", true)
 
     // Integration.
     var clipboardSync by pref("clipboard", true)

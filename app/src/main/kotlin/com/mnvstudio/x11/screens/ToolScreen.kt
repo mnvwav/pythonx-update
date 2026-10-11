@@ -25,6 +25,7 @@ fun ToolScreen(route: String, arg: String, prefs: Prefs, navigate: (String) -> U
         "dev" -> DevToolsScreen(navigate, back)
         "windows" -> WindowsScreen(back)
         "inspector" -> InspectorScreen(back)
+        "input" -> InputScreen(back)
         else -> Text(route, color = Label, modifier = Modifier.fillMaxSize().wrapContentSize())
     }
 }
