@@ -93,10 +93,29 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
         Thread({
             while (!ss.isClosed) {
                 val s = runCatching { ss.accept() }.getOrNull() ?: break
+                val from = s.inetAddress
+                if (!from.isLoopbackAddress && !allowed(from.hostAddress ?: "")) {
+                    onRejected?.invoke(from.hostAddress ?: "?")
+                    runCatching { s.close() }
+                    continue
+                }
                 s.tcpNoDelay = true
                 serve(s.getInputStream(), s.getOutputStream()) { runCatching { s.close() } }
             }
         }, "x11-accept-tcp").apply { isDaemon = true }.start()
+    }
+
+    /**
+     * Addresses allowed to connect over the network (loopback always is). Entries are exact IPs or prefixes ending in
+     * '*' (e.g. "192.168.1.*"); an empty list allows nobody from outside.
+     */
+    @Volatile var allowList: List<String> = emptyList()
+    /** Called with the address of a refused network connection. */
+    @Volatile var onRejected: ((String) -> Unit)? = null
+
+    fun allowed(address: String): Boolean = allowList.any { rule ->
+        val r = rule.trim()
+        r.isNotEmpty() && if (r.endsWith("*")) address.startsWith(r.dropLast(1)) else address == r
     }
 
     /** Serves one client connection (any transport) on its own threads. */
