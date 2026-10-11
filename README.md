@@ -1,6 +1,6 @@
-# MNV X11
+# X11
 
-An X11 display server for Android. Run Linux GUI apps from Termux or a proot distro and use them on your phone with touch, mouse and keyboard.
+Linux apps on your phone. X11 is an X11 display server for Android with its own built-in Alpine Linux: install apps with a tap and use them with touch, mouse and keyboard. It also works with Termux.
 
 ## Modules
 

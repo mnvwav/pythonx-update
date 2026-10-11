@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,13 +32,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -45,64 +50,127 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.inset
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-fun copyText(context: Context, text: String) {
+fun copyText(context: Context, text: String, label: String = "Copied") {
     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    cm.setPrimaryClip(ClipData.newPlainText("command", text))
-    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+    cm.setPrimaryClip(ClipData.newPlainText("X11", text))
+    Toast.makeText(context, label, Toast.LENGTH_SHORT).show()
 }
 
-/** The brand mark: a display frame with a violet/cyan X, drawn so it scales crisply at any size. */
+/** Whether buttons give a light vibration, set from Settings. */
+object Haptics { @Volatile var enabled = true }
+
 @Composable
-fun Logo(size: Dp, modifier: Modifier = Modifier) {
-    Box(modifier.size(size).clip(RoundedCornerShape(size * 0.28f)).background(Brush.linearGradient(listOf(Color(0xFF1B1640), Page)))) {
+private fun tap(onClick: () -> Unit): () -> Unit {
+    val h = LocalHapticFeedback.current
+    return { if (Haptics.enabled) h.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }
+}
+
+// ---------------------------------------------------------------- brand
+
+/**
+ * The X11 mark: a screwdriver and a hammer crossed into an X, in white. Geometry is in a unit square so the
+ * launcher icon (res/drawable/ic_launcher_foreground.xml) matches it exactly.
+ */
+fun DrawScope.drawToolMark(color: Color) {
+    val s = size.minDimension
+    val c = Offset(size.width / 2, size.height / 2)
+    fun bar(x0: Float, x1: Float, w: Float, r: Float) =
+        drawRoundRect(color, Offset(c.x + x0 * s, c.y - w * s / 2), Size((x1 - x0) * s, w * s), CornerRadius(r * s))
+    // Screwdriver: blade top-left, handle bottom-right.
+    rotate(45f, c) {
+        bar(-0.40f, -0.29f, 0.11f, 0.015f)   // flat tip
+        bar(-0.30f, 0.06f, 0.06f, 0.012f)    // shaft
+        bar(0.04f, 0.09f, 0.12f, 0.012f)      // ferrule
+        bar(0.08f, 0.40f, 0.16f, 0.055f)    // handle
+    }
+    // Hammer: head top-right, handle bottom-left.
+    rotate(-45f, c) {
+        bar(-0.40f, -0.06f, 0.16f, 0.055f)   // handle
+        bar(-0.08f, 0.22f, 0.07f, 0.012f)    // neck
+        drawRoundRect(color, Offset(c.x + 0.21f * s, c.y - 0.17f * s), Size(0.13f * s, 0.34f * s), CornerRadius(0.025f * s)) // head
+        drawRoundRect(color, Offset(c.x + 0.24f * s, c.y - 0.27f * s), Size(0.07f * s, 0.11f * s), CornerRadius(0.025f * s)) // claw
+    }
+}
+
+@Composable
+fun Logo(size: Dp, modifier: Modifier = Modifier, framed: Boolean = true) {
+    Box(
+        modifier.size(size).then(if (framed) Modifier.clip(RoundedCornerShape(size * 0.28f)).background(Color(0xFF111113)).border(1.dp, Line, RoundedCornerShape(size * 0.28f)) else Modifier)
+            .semantics { contentDescription = "X11" },
+    ) {
         Canvas(Modifier.size(size)) {
-            val s = this.size.width
-            val stroke = s * 0.075f
-            drawRoundRect(Color(0x55FFFFFF), Offset(s * 0.2f, s * 0.26f), Size(s * 0.6f, s * 0.44f), CornerRadius(s * 0.06f), style = Stroke(s * 0.025f))
-            drawLine(Violet, Offset(s * 0.38f, s * 0.36f), Offset(s * 0.62f, s * 0.6f), stroke, StrokeCap.Round)
-            drawLine(Cyan, Offset(s * 0.62f, s * 0.36f), Offset(s * 0.38f, s * 0.6f), stroke, StrokeCap.Round)
-            drawLine(Color(0x55FFFFFF), Offset(s * 0.42f, s * 0.8f), Offset(s * 0.58f, s * 0.8f), s * 0.025f, StrokeCap.Round)
+            val o = if (framed) this.size.minDimension * 0.17f else 0f
+            inset(o) { drawToolMark(Color.White) }
         }
     }
 }
 
-/** Full-width pill button filled with the brand gradient. */
+// ---------------------------------------------------------------- buttons
+
 @Composable
 fun PrimaryButton(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, enabled: Boolean = true, onClick: () -> Unit) {
     Row(
-        modifier.height(56.dp).clip(CircleShape)
-            .background(if (enabled) BrandGradientDeep else Brush.linearGradient(listOf(CardHigh, CardHigh)))
-            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 24.dp),
+        modifier.height(54.dp).clip(CircleShape).background(if (enabled) Accent else CardHigh)
+            .clickable(enabled = enabled, role = Role.Button, onClick = tap(onClick)).padding(horizontal = 22.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) { Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp)); Box(Modifier.width(10.dp)) }
-        Text(text, color = if (enabled) Color.White else Faint, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        if (icon != null) { Icon(icon, null, tint = if (enabled) OnAccent else Faint, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(10.dp)) }
+        Text(text, color = if (enabled) OnAccent else Faint, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
     }
 }
 
-/** Quiet pill button for secondary actions. */
 @Composable
-fun SecondaryButton(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, color: Color = Ink, onClick: () -> Unit) {
+fun SecondaryButton(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, color: Color = Ink, enabled: Boolean = true, onClick: () -> Unit) {
     Row(
-        modifier.height(52.dp).clip(CircleShape).background(CardHigh).border(1.dp, Line, CircleShape)
-            .clickable(onClick = onClick).padding(horizontal = 20.dp),
+        modifier.height(50.dp).clip(CircleShape).background(CardHigh).border(1.dp, Line, CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = tap(onClick)).padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) { Icon(icon, null, tint = color, modifier = Modifier.size(18.dp)); Box(Modifier.width(8.dp)) }
-        Text(text, color = color, fontWeight = FontWeight.Medium, fontSize = 15.sp)
+        val c = if (enabled) color else Faint
+        if (icon != null) { Icon(icon, null, tint = c, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)) }
+        Text(text, color = c, fontWeight = FontWeight.Medium, fontSize = 14.sp)
     }
 }
+
+@Composable
+fun RoundIcon(icon: ImageVector, description: String, tint: Color = Ink, onClick: () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(CircleShape).background(CardHigh).border(1.dp, Line, CircleShape)
+            .clickable(role = Role.Button, onClick = tap(onClick)).semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp)) }
+}
+
+/** Screen header: back button, title, optional subtitle and trailing actions. */
+@Composable
+fun TopBar(title: String, subtitle: String? = null, onBack: (() -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (onBack != null) { RoundIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack); Spacer(Modifier.width(14.dp)) }
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            if (subtitle != null) Text(subtitle, color = Label, fontSize = 12.sp)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+    }
+}
+
+// ---------------------------------------------------------------- containers
 
 @Composable
 fun SurfaceCard(modifier: Modifier = Modifier, padding: Dp = 20.dp, content: @Composable ColumnScope.() -> Unit) {
@@ -111,11 +179,11 @@ fun SurfaceCard(modifier: Modifier = Modifier, padding: Dp = 20.dp, content: @Co
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp), color = Faint, fontSize = 12.sp,
+    Text(text.uppercase(), modifier.padding(start = 4.dp, top = 20.dp, bottom = 8.dp), color = Faint, fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold, letterSpacing = 1.2.sp)
 }
 
-/** A shell command in a code block, with a copy button. */
+/** A shell command in a code block; tapping copies it. */
 @Composable
 fun CommandBlock(command: String, modifier: Modifier = Modifier, caption: String? = null) {
     val context = LocalContext.current
@@ -123,21 +191,21 @@ fun CommandBlock(command: String, modifier: Modifier = Modifier, caption: String
         if (caption != null) Text(caption, color = Label, fontSize = 13.sp, modifier = Modifier.padding(bottom = 6.dp))
         Row(
             Modifier.fillMaxWidth().clip(ShapeM).background(CodeBg).border(1.dp, Line, ShapeM)
-                .clickable { copyText(context, command) }.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                .clickable(role = Role.Button) { copyText(context, command) }.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+                .semantics { contentDescription = "Copy command: $command" },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-                Text("$ ", color = Violet, fontFamily = Mono, fontSize = 13.sp)
+                Text("$ ", color = Accent, fontFamily = Mono, fontSize = 13.sp)
                 Text(command, color = Ink, fontFamily = Mono, fontSize = 13.sp, softWrap = false)
             }
             Box(Modifier.size(36.dp).clip(ShapeS).background(CardHigh), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.ContentCopy, "Copy", tint = Label, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.ContentCopy, null, tint = Label, modifier = Modifier.size(16.dp))
             }
         }
     }
 }
 
-/** Selectable chips; the selected one is filled with the accent. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun Chips(options: List<String>, selected: String, modifier: Modifier = Modifier, label: (String) -> String = { it }, onPick: (String) -> Unit) {
@@ -146,46 +214,45 @@ fun Chips(options: List<String>, selected: String, modifier: Modifier = Modifier
             val sel = o == selected
             Text(
                 label(o),
-                Modifier.clip(CircleShape).background(if (sel) Violet else CardHigh)
-                    .border(1.dp, if (sel) Violet else Line, CircleShape)
-                    .clickable { onPick(o) }.padding(horizontal = 16.dp, vertical = 9.dp),
-                color = if (sel) Color.White else Ink, fontSize = 14.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
+                Modifier.clip(CircleShape).background(if (sel) Accent else CardHigh).border(1.dp, if (sel) Accent else Line, CircleShape)
+                    .clickable(role = Role.RadioButton, onClick = tap { onPick(o) }).padding(horizontal = 15.dp, vertical = 9.dp),
+                color = if (sel) OnAccent else Ink, fontSize = 13.sp, fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
     }
 }
 
-/** A big selectable option card with icon, title and description. */
 @Composable
 fun OptionCard(icon: ImageVector, title: String, body: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Row(
-        modifier.fillMaxWidth().clip(ShapeM).background(if (selected) Color(0xFF1E1A3A) else Card)
-            .border(if (selected) 1.5.dp else 1.dp, if (selected) Violet else Line, ShapeM)
-            .clickable(onClick = onClick).padding(16.dp),
+        modifier.fillMaxWidth().clip(ShapeM).background(if (selected) AccentSoft else Card)
+            .border(if (selected) 1.5.dp else 1.dp, if (selected) Accent else Line, ShapeM)
+            .clickable(role = Role.RadioButton, onClick = tap(onClick)).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(44.dp).clip(ShapeS).background(if (selected) Violet.copy(alpha = 0.2f) else CardHigh), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = if (selected) Violet else Label, modifier = Modifier.size(22.dp))
+        Box(Modifier.size(44.dp).clip(ShapeS).background(CardHigh), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = if (selected) Accent else Label, modifier = Modifier.size(22.dp))
         }
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             Text(title, color = Ink, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Text(body, color = Label, fontSize = 13.sp, lineHeight = 18.sp)
         }
-        Box(
-            Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (selected) Violet else Line, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) { if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(Violet)) }
+        Box(Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (selected) Accent else Line, CircleShape), contentAlignment = Alignment.Center) {
+            if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(Accent))
+        }
     }
 }
 
 @Composable
-fun ToggleRow(title: String, body: String?, value: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable { onChange(!value) }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+fun ToggleRow(title: String, body: String?, value: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(enabled = enabled, role = Role.Switch) { onChange(!value) }.padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, color = Ink, fontSize = 15.sp)
+            Text(title, color = if (enabled) Ink else Faint, fontSize = 15.sp)
             if (body != null) Text(body, color = Label, fontSize = 12.sp, lineHeight = 16.sp)
         }
-        Switch(value, onChange, colors = SwitchDefaults.colors(checkedTrackColor = Violet, uncheckedTrackColor = CardHigh, uncheckedBorderColor = Line))
+        Switch(value, onChange, enabled = enabled,
+            colors = SwitchDefaults.colors(checkedTrackColor = Accent, uncheckedTrackColor = CardHigh, uncheckedBorderColor = Line))
     }
 }
 
@@ -194,10 +261,10 @@ fun SliderRow(title: String, valueText: String, value: Float, range: ClosedFloat
     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(title, color = Ink, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Text(valueText, color = Violet, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(valueText, color = Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
         Slider(value, onChange, valueRange = range, steps = steps,
-            colors = SliderDefaults.colors(thumbColor = Violet, activeTrackColor = Violet, inactiveTrackColor = CardHigh))
+            colors = SliderDefaults.colors(thumbColor = Accent, activeTrackColor = Accent, inactiveTrackColor = CardHigh))
     }
 }
 
@@ -205,17 +272,36 @@ fun SliderRow(title: String, valueText: String, value: Float, range: ClosedFloat
 @Composable
 fun StatusDot(live: Boolean, size: Dp = 10.dp) {
     val t = rememberInfiniteTransition(label = "pulse")
-    val a by t.animateFloat(0.25f, 0.9f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "a")
+    val a by t.animateFloat(0.2f, 0.85f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "a")
+    val c = if (live) Live else Faint
     Box(Modifier.size(size * 2.2f), contentAlignment = Alignment.Center) {
-        if (live) Box(Modifier.size(size * 2.2f).clip(CircleShape).background(Good.copy(alpha = a * 0.35f)))
-        Box(Modifier.size(size).clip(CircleShape).background(if (live) Good else Faint))
+        if (live) Box(Modifier.size(size * 2.2f).clip(CircleShape).background(c.copy(alpha = a * 0.35f)))
+        Box(Modifier.size(size).clip(CircleShape).background(c))
     }
 }
 
-/** Numbered step marker used in guides. */
 @Composable
 fun StepNumber(n: Int) {
-    Box(Modifier.size(28.dp).clip(CircleShape).background(BrandGradient), contentAlignment = Alignment.Center) {
-        Text("$n", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+    Box(Modifier.size(28.dp).clip(CircleShape).background(Accent), contentAlignment = Alignment.Center) {
+        Text("$n", color = OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
+}
+
+/** A small rounded label, e.g. a status. */
+@Composable
+fun Pill(text: String, color: Color, modifier: Modifier = Modifier) {
+    Text(text, modifier.clip(CircleShape).background(color.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 4.dp),
+        color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+}
+
+@Composable
+fun Confirm(title: String, body: String, confirm: String, danger: Boolean = false, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Card,
+        title = { Text(title, color = Ink, fontWeight = FontWeight.SemiBold) },
+        text = { Text(body, color = Label, fontSize = 14.sp) },
+        confirmButton = { TextButton(onClick = { onDismiss(); onConfirm() }) { Text(confirm, color = if (danger) Bad else Accent, fontWeight = FontWeight.SemiBold) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Label) } },
+    )
 }

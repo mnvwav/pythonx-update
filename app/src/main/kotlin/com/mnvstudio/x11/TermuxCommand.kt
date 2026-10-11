@@ -15,7 +15,7 @@ object TermuxCommand {
 
     private val SCRIPT = """
         #!/data/data/com.termux/files/usr/bin/sh
-        # mnvx11 [-o] [:N] [program args...] - start MNV X11 and run a program on it
+        # mnvx11 [-o] [:N] [program args...] - start X11 and run a program on it
         OPEN=false
         [ "${'$'}1" = "-o" ] && { OPEN=true; shift; }
         D=:0

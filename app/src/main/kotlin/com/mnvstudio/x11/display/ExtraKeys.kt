@@ -39,17 +39,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnvstudio.x11.ui.CardHigh
-import com.mnvstudio.x11.ui.Cyan
+import com.mnvstudio.x11.ui.Live
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Line
 import com.mnvstudio.x11.ui.Mono
 import com.mnvstudio.x11.ui.ShapeS
-import com.mnvstudio.x11.ui.Violet
+import com.mnvstudio.x11.ui.Accent
 
 /**
  * The extra-keys bar. Its layout is a list of key names (editable in Settings):
  * ESC TAB CTRL ALT SHIFT SUPER UP DOWN LEFT RIGHT HOME END PGUP PGDN INS DEL BKSP ENTER F1..F12
- * FN (shows the F1–F12 row), KBD (opens the keyboard), RCLICK; anything else is typed as text, e.g. | or ~.
+ * FN (shows the F1–F12 row), KBD (opens the keyboard), RCLICK, DRAG (holds the left button); anything else is typed as text.
  */
 object ExtraKeys {
     val MODIFIERS = mapOf("CTRL" to KeyMap.CTRL, "ALT" to KeyMap.ALT, "SHIFT" to KeyMap.SHIFT, "SUPER" to SUPER)
@@ -105,6 +105,10 @@ private fun KeyRow(keys: List<String>, sticky: Sticky, view: () -> XDisplayView?
                 upper == "FN" -> Key("Fn", active = fnActive, onClick = toggleFn)
                 upper == "KBD" -> Key(icon = Icons.Filled.Keyboard, description = "Keyboard", accent = true, onClick = onKeyboard)
                 upper == "RCLICK" -> Key("R-CLICK", onClick = onRightClick)
+                upper == "DRAG" -> {
+                    var held by remember { mutableStateOf(false) }
+                    Key("DRAG", active = held, description = "Hold left button") { held = !held; view()?.dragLock = held }
+                }
                 upper == "UP" -> Key(icon = Icons.Filled.KeyboardArrowUp, description = "Up") { view()?.tapKey(KeyMap.UP) }
                 upper == "DOWN" -> Key(icon = Icons.Filled.KeyboardArrowDown, description = "Down") { view()?.tapKey(KeyMap.DOWN) }
                 upper == "LEFT" -> Key(icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft, description = "Left") { view()?.tapKey(KeyMap.LEFT) }
@@ -122,7 +126,7 @@ private fun KeyRow(keys: List<String>, sticky: Sticky, view: () -> XDisplayView?
 @Composable
 private fun Key(label: String? = null, icon: ImageVector? = null, description: String? = null, active: Boolean = false, locked: Boolean = false,
                 accent: Boolean = false, onDouble: (() -> Unit)? = null, onClick: () -> Unit) {
-    val bg = when { locked -> Cyan; active || accent -> Violet; else -> CardHigh }
+    val bg = when { locked -> Live; active || accent -> Accent; else -> CardHigh }
     Box(
         Modifier.height(40.dp).widthIn(min = 46.dp).clip(ShapeS).background(bg).border(1.dp, if (active) bg else Line, ShapeS)
             .combinedClickable(onDoubleClick = onDouble, onClick = onClick).padding(horizontal = 11.dp)

@@ -6,6 +6,7 @@ import android.content.pm.ActivityInfo
 import android.os.Build
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,10 +26,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.material3.DropdownMenu
@@ -38,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,22 +59,25 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.mnvstudio.x11.AppLog
 import com.mnvstudio.x11.Prefs
 import com.mnvstudio.x11.XHolder
-import com.mnvstudio.x11.XService
 import com.mnvstudio.x11.display.ExtraKeysBar
+import com.mnvstudio.x11.display.Screenshot
 import com.mnvstudio.x11.display.Sticky
 import com.mnvstudio.x11.display.XDisplayView
+import com.mnvstudio.x11.linux.Linux
 import com.mnvstudio.x11.ui.Card
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
+import com.mnvstudio.x11.ui.Mono
 import com.mnvstudio.x11.ui.PrimaryButton
 import com.mnvstudio.x11.ui.SecondaryButton
 import com.mnvstudio.x11.ui.ShapeL
 
 /** Full-screen view of the X display, with a floating menu and an optional extra-keys bar. */
 @Composable
-fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
+fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
     val context = LocalContext.current
     val activity = context as Activity
     val server = XHolder.server
@@ -102,9 +110,9 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
     if (server == null) {
         Column(Modifier.fillMaxSize().background(Color.Black).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
-            Text("The X server isn't running", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+            Text("The display is off", color = Ink, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text("Start it to see your apps here.", color = Label, fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp, bottom = 24.dp))
-            PrimaryButton("Start server", Modifier.widthIn(min = 220.dp), icon = Icons.Filled.PlayArrow) { XService.start(context) }
+            PrimaryButton("Start display", Modifier.widthIn(min = 220.dp), icon = Icons.Filled.PlayArrow) { XHolder.ensureStarted(context) }
             Spacer(Modifier.height(12.dp))
             SecondaryButton("Back", Modifier.widthIn(min = 220.dp)) { onBack() }
         }
@@ -114,6 +122,7 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
     val sticky = remember { Sticky() }
     var menu by remember { mutableStateOf(false) }
     var view by remember { mutableStateOf<XDisplayView?>(null) }
+    var fps by remember { mutableIntStateOf(0) }
 
     fun showKeyboard() {
         val v = view ?: return
@@ -133,26 +142,32 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
                     if (v.smooth != prefs.smoothScaling) v.smooth = prefs.smoothScaling
                     if (v.fitMode != prefs.fitMode) v.fitMode = prefs.fitMode
                     v.maxFps = prefs.maxFps
-                    v.cursorScale = prefs.cursorScale
+                    if (v.cursorScale != prefs.cursorScale) v.cursorScale = prefs.cursorScale
                     v.keepScreenOn = prefs.keepScreenOn
                     v.stickyMods = { sticky.active() }
                     v.onStickyUsed = { sticky.used() }
+                    v.onFps = if (prefs.perfOverlay) { f -> fps = f } else null
                 },
                 onRelease = { it.server = null },
             )
             // An empty screen otherwise looks broken: say so and offer the apps.
             if (XHolder.clients == 0) {
-                Column(Modifier.align(Alignment.Center).padding(24.dp).clip(ShapeL).background(Color(0xCC141826)).padding(24.dp),
+                Column(Modifier.align(Alignment.Center).padding(24.dp).clip(ShapeL).background(Color(0xE6161619)).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No apps connected yet", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (Linux.jobs.isEmpty()) "No apps open yet" else "Starting ${Linux.jobs.last().name}…", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                     Text("Open an app from Linux apps, or run one with DISPLAY=:${XHolder.display}", color = Label, fontSize = 13.sp,
                         modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
-                    PrimaryButton("Open Linux apps", Modifier.widthIn(min = 220.dp)) { onApps() }
+                    PrimaryButton("Linux apps", Modifier.widthIn(min = 200.dp), icon = Icons.Filled.Apps) { onApps() }
                 }
+            }
+            if (prefs.perfOverlay) {
+                Text("$fps fps · ${server.width}×${server.height} · ${XHolder.clients} apps", color = Color.White, fontFamily = Mono, fontSize = 11.sp,
+                    modifier = Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopStart).clip(CircleShape)
+                        .background(Color(0x99000000)).padding(horizontal = 10.dp, vertical = 4.dp))
             }
             // Floating menu button.
             Box(Modifier.statusBarsPadding().padding(10.dp).align(Alignment.TopEnd)) {
-                Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0x99141826)).border(1.dp, Color(0x55FFFFFF), CircleShape)
+                Box(Modifier.size(40.dp).clip(CircleShape).background(Color(0x99161619)).border(1.dp, Color(0x55FFFFFF), CircleShape)
                     .clickable { menu = true }, contentAlignment = Alignment.Center) {
                     Icon(Icons.Filled.Menu, "Display menu", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
@@ -164,9 +179,15 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
                         prefs.touchMode = if (prefs.touchMode == Prefs.MODE_DIRECT) Prefs.MODE_TOUCHPAD else Prefs.MODE_DIRECT
                     }
                     MenuItem(Icons.Filled.ZoomOutMap, "Reset zoom") { menu = false; view?.resetZoom() }
-                    MenuItem(Icons.Filled.Keyboard, if (prefs.extraKeys) "Hide extra keys" else "Show extra keys") {
-                        menu = false; prefs.extraKeys = !prefs.extraKeys
+                    MenuItem(Icons.Filled.PhotoCamera, "Screenshot") {
+                        menu = false
+                        val msg = runCatching { "Saved to " + Screenshot.save(context, server) }
+                            .getOrElse { AppLog.e("Screenshot failed", it); "Couldn't save the screenshot" }
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }
+                    MenuItem(Icons.Filled.Speed, if (prefs.perfOverlay) "Hide performance" else "Show performance") { menu = false; prefs.perfOverlay = !prefs.perfOverlay }
+                    MenuItem(Icons.Filled.Keyboard, if (prefs.extraKeys) "Hide extra keys" else "Show extra keys") { menu = false; prefs.extraKeys = !prefs.extraKeys }
+                    MenuItem(Icons.Filled.Apps, "Linux apps") { menu = false; onApps() }
                     MenuItem(Icons.AutoMirrored.Filled.ArrowBack, "Leave display") { menu = false; onBack() }
                 }
             }
@@ -181,9 +202,5 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit = {}) {
 
 @Composable
 private fun MenuItem(icon: ImageVector, text: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text, color = Ink, fontSize = 14.sp) },
-        leadingIcon = { Icon(icon, null, tint = Label) },
-        onClick = onClick,
-    )
+    DropdownMenuItem(text = { Text(text, color = Ink, fontSize = 14.sp) }, leadingIcon = { Icon(icon, null, tint = Label) }, onClick = onClick)
 }

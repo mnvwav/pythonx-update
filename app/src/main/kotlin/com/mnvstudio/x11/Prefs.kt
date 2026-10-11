@@ -16,11 +16,14 @@ class Prefs(context: Context) {
     private fun bool(key: String, def: Boolean) = mutableStateOf(sp.getBoolean(key, def))
     private fun int(key: String, def: Int) = mutableStateOf(sp.getInt(key, def))
     private fun float(key: String, def: Float) = mutableStateOf(sp.getFloat(key, def))
+    private fun strings(key: String) = mutableStateOf(sp.getStringSet(key, emptySet())?.toSet() ?: emptySet())
     private fun <T : Any> set(state: MutableState<T>, key: String, v: T) {
         state.value = v
         sp.edit().apply {
+            @Suppress("UNCHECKED_CAST")
             when (v) {
                 is Boolean -> putBoolean(key, v); is Int -> putInt(key, v); is Float -> putFloat(key, v)
+                is Set<*> -> putStringSet(key, v as Set<String>)
                 else -> putString(key, v.toString())
             }
         }.apply()
@@ -28,39 +31,67 @@ class Prefs(context: Context) {
 
     private val _onboarded = bool("onboarded", false); var onboarded get() = _onboarded.value; set(v) = set(_onboarded, "onboarded", v)
 
-    /** "Native" or "WIDTHxHEIGHT". */
+    // Display.
+    /** "Native", "Custom" or "WIDTHxHEIGHT". */
     private val _resolution = str("resolution", RES_NATIVE); var resolution get() = _resolution.value; set(v) = set(_resolution, "resolution", v)
     /** Fraction of the device's pixels used at native resolution (smaller = bigger UI, faster). */
     private val _scale = float("scale", 0.5f); var scale get() = _scale.value; set(v) = set(_scale, "scale", v)
-    private val _display = int("display", 0); var display get() = _display.value; set(v) = set(_display, "display", v)
-    private val _fitWindows = bool("fitWindows", true); var fitWindows get() = _fitWindows.value; set(v) = set(_fitWindows, "fitWindows", v)
-
-    /** "touchpad" (relative pointer, tap to click) or "direct" (touch where you want to click). */
-    private val _touchMode = str("touchMode", MODE_TOUCHPAD); var touchMode get() = _touchMode.value; set(v) = set(_touchMode, "touchMode", v)
-    private val _pointerSpeed = float("pointerSpeed", 1.2f); var pointerSpeed get() = _pointerSpeed.value; set(v) = set(_pointerSpeed, "pointerSpeed", v)
-    private val _extraKeys = bool("extraKeys", true); var extraKeys get() = _extraKeys.value; set(v) = set(_extraKeys, "extraKeys", v)
-    private val _keepScreenOn = bool("keepScreenOn", true); var keepScreenOn get() = _keepScreenOn.value; set(v) = set(_keepScreenOn, "keepScreenOn", v)
-    private val _smooth = bool("smooth", true); var smoothScaling get() = _smooth.value; set(v) = set(_smooth, "smooth", v)
     private val _customW = int("customW", 1280); var customW get() = _customW.value; set(v) = set(_customW, "customW", v)
     private val _customH = int("customH", 720); var customH get() = _customH.value; set(v) = set(_customH, "customH", v)
-    /** How the X screen fits the phone: "fit", "stretch" or "pixel" (1:1). */
+    private val _display = int("display", 0); var display get() = _display.value; set(v) = set(_display, "display", v)
+    /** "fit", "stretch" or "pixel" (1:1). */
     private val _fitMode = str("fitMode", "fit"); var fitMode get() = _fitMode.value; set(v) = set(_fitMode, "fitMode", v)
     /** Text scaling reported to apps (Xft.dpi); 0 = automatic. */
     private val _dpi = int("dpi", 0); var dpiSetting get() = _dpi.value; set(v) = set(_dpi, "dpi", v)
     private val _maxFps = int("maxFps", 60); var maxFps get() = _maxFps.value; set(v) = set(_maxFps, "maxFps", v)
-    private val _cursorScale = float("cursorScale", 1f); var cursorScale get() = _cursorScale.value; set(v) = set(_cursorScale, "cursorScale", v)
-    /** Extra keys bar, as space-separated key names (see ExtraKeys). */
-    private val _keyLayout = str("keyLayout", DEFAULT_KEYS); var keyLayout get() = _keyLayout.value; set(v) = set(_keyLayout, "keyLayout", v)
-    private val _clipboard = bool("clipboard", true); var clipboardSync get() = _clipboard.value; set(v) = set(_clipboard, "clipboard", v)
-    private val _primary = bool("syncPrimary", false); var syncPrimary get() = _primary.value; set(v) = set(_primary, "syncPrimary", v)
-    private val _cutout = bool("cutout", false); var drawInCutout get() = _cutout.value; set(v) = set(_cutout, "cutout", v)
-
+    private val _smooth = bool("smooth", true); var smoothScaling get() = _smooth.value; set(v) = set(_smooth, "smooth", v)
     /** "auto", "landscape" or "portrait" while the display is open. */
     private val _orientation = str("orientation", "landscape"); var orientation get() = _orientation.value; set(v) = set(_orientation, "orientation", v)
+    private val _cutout = bool("cutout", false); var drawInCutout get() = _cutout.value; set(v) = set(_cutout, "cutout", v)
+    private val _keepScreenOn = bool("keepScreenOn", true); var keepScreenOn get() = _keepScreenOn.value; set(v) = set(_keepScreenOn, "keepScreenOn", v)
+    private val _perfOverlay = bool("perfOverlay", false); var perfOverlay get() = _perfOverlay.value; set(v) = set(_perfOverlay, "perfOverlay", v)
 
-    /** Screen size the server is created with. Native follows the device in landscape, scaled and rounded to even sizes. */
+    // Windows.
+    /** Run a window manager (twm) automatically so windows can be moved and resized like a desktop. */
+    private val _desktopMode = bool("desktopMode", false); var desktopMode get() = _desktopMode.value; set(v) = set(_desktopMode, "desktopMode", v)
+    /** Without a window manager, top-level windows fill the screen. */
+    private val _fitWindows = bool("fitWindows", true); var fitWindows get() = _fitWindows.value; set(v) = set(_fitWindows, "fitWindows", v)
+    /** Catalog app ids started with the server. */
+    private val _autostart = strings("autostart"); var autostart get() = _autostart.value; set(v) = set(_autostart, "autostart", v)
+
+    // Input.
+    /** "touchpad" (trackpad: relative pointer) or "direct" (touch where you click). */
+    private val _touchMode = str("touchMode", MODE_TOUCHPAD); var touchMode get() = _touchMode.value; set(v) = set(_touchMode, "touchMode", v)
+    private val _pointerSpeed = float("pointerSpeed", 1.2f); var pointerSpeed get() = _pointerSpeed.value; set(v) = set(_pointerSpeed, "pointerSpeed", v)
+    private val _cursorScale = float("cursorScale", 1f); var cursorScale get() = _cursorScale.value; set(v) = set(_cursorScale, "cursorScale", v)
+    private val _extraKeys = bool("extraKeys", true); var extraKeys get() = _extraKeys.value; set(v) = set(_extraKeys, "extraKeys", v)
+    private val _keyLayout = str("keyLayout", DEFAULT_KEYS); var keyLayout get() = _keyLayout.value; set(v) = set(_keyLayout, "keyLayout", v)
+    private val _haptics = bool("haptics", true); var haptics get() = _haptics.value; set(v) = set(_haptics, "haptics", v)
+
+    // Integration.
+    private val _clipboard = bool("clipboard", true); var clipboardSync get() = _clipboard.value; set(v) = set(_clipboard, "clipboard", v)
+    private val _primary = bool("syncPrimary", false); var syncPrimary get() = _primary.value; set(v) = set(_primary, "syncPrimary", v)
+
+    // Network.
+    /** Accept X11 connections from other devices on the network (only from [allowList]). */
+    private val _lan = bool("lan", false); var lanAccess get() = _lan.value; set(v) = set(_lan, "lan", v)
+    private val _allowList = str("allowList", ""); var allowList get() = _allowList.value; set(v) = set(_allowList, "allowList", v)
+
+    // Power.
+    private val _wakeLock = bool("wakeLock", false); var wakeLock get() = _wakeLock.value; set(v) = set(_wakeLock, "wakeLock", v)
+    /** Stop the server after this many minutes with no apps connected; 0 = never. */
+    private val _idleStop = int("idleStop", 0); var idleStopMinutes get() = _idleStop.value; set(v) = set(_idleStop, "idleStop", v)
+
+    // Look.
+    private val _dynamic = bool("dynamicColor", false); var dynamicColor get() = _dynamic.value; set(v) = set(_dynamic, "dynamicColor", v)
+    private val _contrast = bool("highContrast", false); var highContrast get() = _contrast.value; set(v) = set(_contrast, "highContrast", v)
+
+    // Linux compatibility, set by Diagnostics when it finds what works on this phone.
+    private val _noSeccomp = bool("noSeccomp", false); var prootNoSeccomp get() = _noSeccomp.value; set(v) = set(_noSeccomp, "noSeccomp", v)
+
+    /** Screen size the server is created with. */
     fun screenSize(): Pair<Int, Int> {
-        if (resolution == RES_CUSTOM) return customW.coerceIn(320, 7680) to customH.coerceIn(240, 4320)
+        if (resolution == RES_CUSTOM) return customW.coerceIn(320, 7680) / 2 * 2 to customH.coerceIn(240, 4320) / 2 * 2
         if (resolution != RES_NATIVE) {
             val p = resolution.split('x')
             p.getOrNull(0)?.toIntOrNull()?.let { w -> p.getOrNull(1)?.toIntOrNull()?.let { h -> return w to h } }
@@ -72,7 +103,7 @@ class Prefs(context: Context) {
         return even(w * scale) to even(h * scale)
     }
 
-    /** Dots per inch reported to clients, so toolkits pick sensible sizes. */
+    /** Dots per inch reported to apps. */
     fun dpi(): Int = when {
         dpiSetting > 0 -> dpiSetting
         resolution == RES_NATIVE -> (metrics.densityDpi * scale).roundToInt().coerceIn(72, 240)
@@ -82,9 +113,9 @@ class Prefs(context: Context) {
     companion object {
         const val RES_NATIVE = "Native"
         const val RES_CUSTOM = "Custom"
-        const val DEFAULT_KEYS = "ESC TAB CTRL ALT SUPER SHIFT LEFT UP DOWN RIGHT HOME END PGUP PGDN FN KBD"
         const val MODE_TOUCHPAD = "touchpad"
         const val MODE_DIRECT = "direct"
+        const val DEFAULT_KEYS = "ESC TAB CTRL ALT SUPER SHIFT LEFT UP DOWN RIGHT HOME END PGUP PGDN DRAG FN KBD"
         val RESOLUTIONS = listOf(RES_NATIVE, "1280x720", "1600x900", "1920x1080", "1024x768", RES_CUSTOM)
     }
 }

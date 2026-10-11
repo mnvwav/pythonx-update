@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon. Same geometry as drawToolMark() in ui/Components.kt. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:pathData="M7,7L17,17M17,7L7,17" android:strokeColor="#FFFFFFFF" android:strokeWidth="2.6" android:strokeLineCap="round" />
+    <group android:rotation="45" android:pivotX="12" android:pivotY="12">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M3.53,10.79h1.76a0.33,0.33 0,0 1,0.33,0.33v1.76a0.33,0.33 0,0 1,-0.33,0.33h-1.76a0.33,0.33 0,0 1,-0.33,-0.33v-1.76a0.33,0.33 0,0 1,0.33,-0.33zM5.66,11.34h7.39a0.26,0.26 0,0 1,0.26,0.26v0.79a0.26,0.26 0,0 1,-0.26,0.26h-7.39a0.26,0.26 0,0 1,-0.26,-0.26v-0.79a0.26,0.26 0,0 1,0.26,-0.26zM13.14,10.68h0.57a0.26,0.26 0,0 1,0.26,0.26v2.11a0.26,0.26 0,0 1,-0.26,0.26h-0.57a0.26,0.26 0,0 1,-0.26,-0.26v-2.11a0.26,0.26 0,0 1,0.26,-0.26zM14.97,10.24h4.62a1.21,1.21 0,0 1,1.21,1.21v1.10a1.21,1.21 0,0 1,-1.21,1.21h-4.62a1.21,1.21 0,0 1,-1.21,-1.21v-1.10a1.21,1.21 0,0 1,1.21,-1.21z" />
+    </group>
+    <group android:rotation="-45" android:pivotX="12" android:pivotY="12">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M4.41,10.24h5.06a1.21,1.21 0,0 1,1.21,1.21v1.10a1.21,1.21 0,0 1,-1.21,1.21h-5.06a1.21,1.21 0,0 1,-1.21,-1.21v-1.10a1.21,1.21 0,0 1,1.21,-1.21zM10.50,11.23h6.07a0.26,0.26 0,0 1,0.26,0.26v1.01a0.26,0.26 0,0 1,-0.26,0.26h-6.07a0.26,0.26 0,0 1,-0.26,-0.26v-1.01a0.26,0.26 0,0 1,0.26,-0.26zM17.17,8.26h1.76a0.55,0.55 0,0 1,0.55,0.55v6.38a0.55,0.55 0,0 1,-0.55,0.55h-1.76a0.55,0.55 0,0 1,-0.55,-0.55v-6.38a0.55,0.55 0,0 1,0.55,-0.55zM17.83,6.06h0.44a0.55,0.55 0,0 1,0.55,0.55v1.32a0.55,0.55 0,0 1,-0.55,0.55h-0.44a0.55,0.55 0,0 1,-0.55,-0.55v-1.32a0.55,0.55 0,0 1,0.55,-0.55z" />
+    </group>
 </vector>

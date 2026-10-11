@@ -65,6 +65,11 @@ class XDisplayView(context: Context) : FrameLayout(context) {
         set(v) { field = v; cursorView.invalidate() }
     /** Sticky modifiers from the extra-keys bar (X keycodes), held for the next key and then released. */
     var stickyMods: () -> List<Int> = { emptyList() }
+    /** Frames drawn in the last second, reported about once a second when set (performance overlay). */
+    var onFps: ((Int) -> Unit)? = null
+    /** Left button held by the extra keys bar's DRAG key, so one finger can drag in trackpad mode. */
+    var dragLock = false
+        set(v) { field = v; server?.button(1, v) }
     var onStickyUsed: () -> Unit = {}
 
     // View transform: screen pixel (x, y) is drawn at (offX + x * sx, offY + y * sy).
@@ -180,7 +185,13 @@ class XDisplayView(context: Context) : FrameLayout(context) {
             layoutChanged = true
         }
 
+        private var frames = 0
+        private var fpsSince = 0L
+
         override fun onDrawFrame(unused: GL10?) {
+            frames++
+            val now = SystemClock.uptimeMillis()
+            if (now - fpsSince >= 1000) { val f = frames; frames = 0; fpsSince = now; onFps?.let { cb -> main.post { cb(f) } } }
             GLES20.glClearColor(0f, 0f, 0f, 1f)
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
             val s = server ?: return

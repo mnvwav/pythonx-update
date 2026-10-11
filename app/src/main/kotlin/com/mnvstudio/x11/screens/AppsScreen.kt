@@ -23,16 +23,23 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Window
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
@@ -49,36 +56,45 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mnvstudio.x11.Launcher
 import com.mnvstudio.x11.Prefs
-import com.mnvstudio.x11.XHolder
-import com.mnvstudio.x11.XService
 import com.mnvstudio.x11.linux.Catalog
 import com.mnvstudio.x11.linux.Linux
 import com.mnvstudio.x11.linux.LinuxApp
+import com.mnvstudio.x11.ui.Accent
+import com.mnvstudio.x11.ui.AccentSoft
 import com.mnvstudio.x11.ui.Bad
 import com.mnvstudio.x11.ui.Card
 import com.mnvstudio.x11.ui.CardHigh
+import com.mnvstudio.x11.ui.Chips
 import com.mnvstudio.x11.ui.CodeBg
-import com.mnvstudio.x11.ui.Cyan
 import com.mnvstudio.x11.ui.Faint
-import com.mnvstudio.x11.ui.Good
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
 import com.mnvstudio.x11.ui.Line
+import com.mnvstudio.x11.ui.Live
 import com.mnvstudio.x11.ui.Mono
 import com.mnvstudio.x11.ui.Page
+import com.mnvstudio.x11.ui.Pill
 import com.mnvstudio.x11.ui.PrimaryButton
 import com.mnvstudio.x11.ui.SectionTitle
 import com.mnvstudio.x11.ui.ShapeM
 import com.mnvstudio.x11.ui.SurfaceCard
-import com.mnvstudio.x11.ui.Violet
+import com.mnvstudio.x11.ui.TopBar
 
-/** The built-in Linux: set it up, install and open apps, or run a command — all without leaving the app. */
+fun appIcon(id: String): ImageVector = when (id) {
+    "xterm" -> Icons.Filled.Terminal; "xcalc" -> Icons.Filled.Calculate; "xclock" -> Icons.Filled.Schedule
+    "xeyes" -> Icons.Filled.Visibility; "xedit" -> Icons.Filled.Edit; "twm" -> Icons.Filled.Window
+    "xload" -> Icons.Filled.Insights; "xlogo" -> Icons.Filled.AutoAwesome; else -> Icons.Filled.Apps
+}
+
+/** The built-in Linux: set it up, then install, open and manage apps and packages. */
 @Composable
 fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
@@ -86,91 +102,58 @@ fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
     LaunchedEffect(Unit) { Linux.check(context) }
     val log = remember { mutableStateListOf<String>() }
     var busy by remember { mutableStateOf<String?>(null) }
+    var tab by remember { mutableStateOf("Apps") }
+    fun addLog(line: String) { log += line; if (log.size > 300) log.removeAt(0) }
 
-    fun addLog(line: String) { log += line; if (log.size > 400) log.removeAt(0) }
+    fun open(app: LinuxApp) { addLog("$ ${app.command}"); if (Launcher.open(context, app, ::addLog)) navigate("display") }
 
-    /** Starts the X server if needed, launches the app and switches to the display. */
-    fun open(app: LinuxApp) {
-        // A just-started server needs a moment before it accepts connections.
-        val wait = if (XHolder.server == null) "sleep 1; " else ""
-        XService.start(context)
-        addLog("$ ${app.command}")
-        Linux.run(context, wait + app.command, prefs.display, ::addLog) { code -> if (code != 0) addLog("${app.name} exited ($code)") }
-        // Give it a moment to connect; if it fails right away, stay here so the error is visible in Output.
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ if (XHolder.clients > 0) navigate("display") else addLog("Waiting for ${app.name} to connect… (check the messages above)") }, 2500)
-    }
-
-    fun install(app: LinuxApp, thenOpen: Boolean) {
-        busy = app.name
-        addLog("Installing ${app.name}…")
-        Linux.installPackages(context, app.packages, prefs.display, ::addLog) { ok ->
+    fun install(packages: List<String>, label: String, then: () -> Unit = {}) {
+        busy = label
+        addLog("Installing $label…")
+        Linux.installPackages(context, packages, ::addLog) { ok ->
             busy = null
-            addLog(if (ok) "${app.name} installed" else "Couldn't install ${app.name}")
-            if (ok && thenOpen) open(app)
+            addLog(if (ok) "$label installed" else "Couldn't install $label. Diagnostics can test and repair Linux.")
+            if (ok) then()
         }
     }
 
     Column(Modifier.fillMaxSize().background(Page).systemBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            RoundIcon(Icons.AutoMirrored.Filled.ArrowBack, "Back", onClick = onBack)
-            Column(Modifier.padding(start = 14.dp)) {
-                Text("Linux apps", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("Built-in Alpine Linux", color = Label, fontSize = 12.sp)
-            }
-        }
+        TopBar("Linux apps", "Built-in Alpine Linux", onBack = onBack)
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Column(Modifier.widthIn(max = 640.dp)) {
                 if (!Linux.prootAvailable(context)) {
                     SurfaceCard {
                         Text("Linux support isn't included in this build", color = Bad, fontWeight = FontWeight.SemiBold)
-                        Text("proot wasn't bundled. Rebuild the app with internet access so Gradle can download it (fetchProot).",
+                        Text("proot wasn't bundled. Rebuild with internet access so Gradle can download it (fetchProot task).",
                             color = Label, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
                 when (Linux.state) {
                     Linux.State.READY -> {
-                        SectionTitle("Apps")
-                        val rev = Linux.revision
-                        Catalog.apps.chunked(2).forEach { row ->
-                            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                row.forEach { app ->
-                                    val installed = remember(rev) { Linux.isInstalled(context, app.binary) }
-                                    AppTile(app, installed, busy == app.name, Modifier.weight(1f)) {
-                                        if (busy != null) return@AppTile
-                                        if (installed) open(app) else install(app, thenOpen = true)
-                                    }
-                                }
-                                if (row.size == 1) Spacer(Modifier.weight(1f))
-                            }
+                        Chips(listOf("Apps", "Search", "Installed"), tab) { tab = it }
+                        Spacer(Modifier.height(8.dp))
+                        when (tab) {
+                            "Search" -> SearchTab(busy) { name -> install(listOf(name), name) }
+                            "Installed" -> InstalledTab(busy, ::addLog)
+                            else -> CatalogTab(prefs, busy, onOpen = ::open, onInstall = { app -> install(app.packages, app.name) { open(app) } }, log = ::addLog)
                         }
-                        SectionTitle("Run a command")
-                        CommandRunner(prefs, ::addLog, onOpenDisplay = { XService.start(context); navigate("display") })
                     }
                     Linux.State.INSTALLING -> SurfaceCard {
                         Text("Setting up Linux", color = Ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Text(Linux.status, color = Label, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp))
-                        LinearProgressIndicator(progress = { Linux.progress }, modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Violet, trackColor = CardHigh)
+                        LinearProgressIndicator(progress = { Linux.progress }, modifier = Modifier.fillMaxWidth().clip(CircleShape), color = Accent, trackColor = CardHigh)
                     }
-                    else -> SurfaceCard {
-                        Box(Modifier.size(52.dp).clip(ShapeM).background(Violet.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.CloudDownload, null, tint = Violet)
-                        }
-                        Text("Set up Linux", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp))
-                        Text("Downloads Alpine Linux (about 4 MB) into the app. Apps you install add to that. No root and no other apps needed.",
-                            color = Label, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
-                        if (Linux.state == Linux.State.FAILED) Text(Linux.status, color = Bad, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
-                        PrimaryButton("Download & set up", Modifier.fillMaxWidth(), icon = Icons.Filled.CloudDownload, enabled = Linux.prootAvailable(context)) {
-                            Linux.install(context)
-                        }
-                    }
+                    else -> SetupCard()
                 }
                 if (log.isNotEmpty()) {
                     SectionTitle("Output")
                     Column(Modifier.fillMaxWidth().heightIn(max = 260.dp).clip(ShapeM).background(CodeBg).border(1.dp, Line, ShapeM)
                         .verticalScroll(rememberScrollState(), reverseScrolling = true).padding(12.dp)) {
-                        log.forEach { Text(it, color = if (it.startsWith("$")) Cyan else Label, fontFamily = Mono, fontSize = 12.sp) }
+                        log.forEach { Text(it, color = if (it.startsWith("$")) Accent else Label, fontFamily = Mono, fontSize = 12.sp) }
                     }
+                    Text("Something failing? Diagnostics tests and repairs Linux.", color = Accent, fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 10.dp).clickable { navigate("diagnostics") })
                 }
                 Spacer(Modifier.height(32.dp))
             }
@@ -178,53 +161,118 @@ fun AppsScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) {
     }
 }
 
-private fun iconFor(app: LinuxApp): ImageVector = when (app.binary) {
-    "xterm" -> Icons.Filled.Terminal; "xcalc" -> Icons.Filled.Calculate; "xclock" -> Icons.Filled.Schedule
-    "xeyes" -> Icons.Filled.Visibility; "xedit" -> Icons.Filled.Edit; "twm" -> Icons.Filled.Window; else -> Icons.Filled.Apps
-}
-
 @Composable
-private fun AppTile(app: LinuxApp, installed: Boolean, working: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier.clip(ShapeM).background(Card).border(1.dp, Line, ShapeM).clickable(onClick = onClick).padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).clip(ShapeM).background(Violet.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                Icon(iconFor(app), null, tint = Violet, modifier = Modifier.size(22.dp))
-            }
-            Spacer(Modifier.weight(1f))
-            Text(
-                when { working -> "Installing…"; installed -> "Open"; else -> "Install" },
-                color = if (installed) Good else Cyan, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clip(CircleShape).background(CardHigh).padding(horizontal = 10.dp, vertical = 4.dp),
-            )
-        }
-        Text(app.name, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
-        Text(app.description, color = Label, fontSize = 12.sp, lineHeight = 16.sp)
-    }
-}
-
-@Composable
-private fun CommandRunner(prefs: Prefs, log: (String) -> Unit, onOpenDisplay: () -> Unit) {
+fun SetupCard() {
     val context = LocalContext.current
-    var cmd by remember { mutableStateOf("") }
-    fun run() {
-        if (cmd.isBlank()) return
-        log("$ $cmd")
-        Linux.run(context, cmd, prefs.display, log) { code -> log("[exit $code]") }
-        cmd = ""
-    }
-    SurfaceCard(padding = 16.dp) {
-        OutlinedTextField(
-            cmd, { cmd = it }, Modifier.fillMaxWidth(), singleLine = true, shape = ShapeM,
-            placeholder = { Text("apk add xterm   ·   xterm &", color = Faint, fontFamily = Mono, fontSize = 13.sp) },
-            textStyle = TextStyle(fontFamily = Mono, fontSize = 13.sp, color = Ink),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go), keyboardActions = KeyboardActions(onGo = { run() }),
-        )
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton("Run", Modifier.weight(1f), icon = Icons.Filled.PlayArrow) { run() }
-            com.mnvstudio.x11.ui.SecondaryButton("Display", Modifier.weight(1f)) { onOpenDisplay() }
+    SurfaceCard {
+        Box(Modifier.size(52.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) { Icon(Icons.Filled.CloudDownload, null, tint = Accent) }
+        Text("Set up Linux", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp))
+        Text("Downloads Alpine Linux (about 4 MB) into the app. Apps you install add to that. No root and no other apps needed.",
+            color = Label, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+        if (Linux.state == Linux.State.FAILED) Text(Linux.status, color = Bad, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
+        PrimaryButton("Download & set up", Modifier.fillMaxWidth(), icon = Icons.Filled.CloudDownload, enabled = Linux.prootAvailable(context)) {
+            Linux.install(context)
         }
-        Text("Runs inside Alpine as root (in proot). X11 apps appear on display :${prefs.display}${if (XHolder.server == null) " once the server starts" else ""}.",
-            color = Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
+    }
+}
+
+@Composable
+private fun CatalogTab(prefs: Prefs, busy: String?, onOpen: (LinuxApp) -> Unit, onInstall: (LinuxApp) -> Unit, log: (String) -> Unit) {
+    val context = LocalContext.current
+    Catalog.apps.groupBy { it.category }.forEach { (category, apps) ->
+        SectionTitle(category)
+        Column(Modifier.fillMaxWidth().clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)) {
+            apps.forEachIndexed { i, app ->
+                val installed = remember(Linux.revision) { Linux.isInstalled(context, app) }
+                val working = busy == app.name
+                var menu by remember { mutableStateOf(false) }
+                Row(
+                    Modifier.fillMaxWidth().clickable(enabled = busy == null, role = Role.Button) { if (installed) onOpen(app) else onInstall(app) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(42.dp).clip(ShapeM).background(AccentSoft), contentAlignment = Alignment.Center) {
+                        Icon(appIcon(app.id), null, tint = Accent, modifier = Modifier.size(22.dp))
+                    }
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(app.name, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            if (app.id in prefs.autostart) { Spacer(Modifier.size(8.dp)); Pill("autostart", Live) }
+                        }
+                        Text(app.description, color = Label, fontSize = 12.sp)
+                    }
+                    Pill(when { working -> "Installing…"; installed -> "Open"; else -> "Install" }, if (installed) Live else Accent)
+                    if (installed) Box {
+                        Box(Modifier.size(40.dp).clip(CircleShape).clickable { menu = true }, contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.MoreVert, "More for ${app.name}", tint = Label)
+                        }
+                        DropdownMenu(menu, { menu = false }, containerColor = Card) {
+                            DropdownMenuItem(text = { Text("Add to home screen", color = Ink) }, leadingIcon = { Icon(Icons.Filled.PushPin, null, tint = Label) },
+                                onClick = { menu = false; Launcher.pinShortcut(context, app) })
+                            val auto = app.id in prefs.autostart
+                            DropdownMenuItem(text = { Text(if (auto) "Don't start automatically" else "Start with the display", color = Ink) },
+                                leadingIcon = { Icon(Icons.Filled.Schedule, null, tint = Label) },
+                                onClick = { menu = false; prefs.autostart = if (auto) prefs.autostart - app.id else prefs.autostart + app.id })
+                            DropdownMenuItem(text = { Text("Remove", color = Bad) }, leadingIcon = { Icon(Icons.Filled.Delete, null, tint = Bad) },
+                                onClick = { menu = false; Linux.removePackages(context, app.packages, log) { log(if (it) "${app.name} removed" else "Couldn't remove ${app.name}") } })
+                        }
+                    }
+                }
+                if (i < apps.lastIndex) Box(Modifier.fillMaxWidth().padding(start = 68.dp).height(1.dp).background(Line))
+            }
+        }
+    }
+    Text("These apps use the classic X11 features this server supports. Apps that need GTK or Qt (Firefox, GIMP) aren't supported yet.",
+        color = Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp, start = 4.dp))
+}
+
+@Composable
+private fun SearchTab(busy: String?, onInstall: (String) -> Unit) {
+    val context = LocalContext.current
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<Pair<String, String>>?>(null) }
+    var searching by remember { mutableStateOf(false) }
+    fun go() { if (query.isBlank()) return; searching = true; Linux.search(context, query) { results = it; searching = false } }
+    OutlinedTextField(
+        query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, shape = ShapeM,
+        placeholder = { Text("Search Alpine packages, e.g. nano", color = Faint) },
+        leadingIcon = { Icon(Icons.Filled.Search, null, tint = Label) },
+        textStyle = TextStyle(color = Ink, fontSize = 15.sp),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), keyboardActions = KeyboardActions(onSearch = { go() }),
+    )
+    Spacer(Modifier.height(12.dp))
+    when {
+        searching -> LinearProgressIndicator(Modifier.fillMaxWidth().clip(CircleShape), color = Accent, trackColor = CardHigh)
+        results?.isEmpty() == true -> Text("No packages found.", color = Label, fontSize = 14.sp)
+        results != null -> Column(Modifier.fillMaxWidth().clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)) {
+            results!!.forEach { (name, desc) ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(name, color = Ink, fontFamily = Mono, fontSize = 14.sp)
+                        Text(desc, color = Label, fontSize = 12.sp, maxLines = 2)
+                    }
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(CardHigh).clickable(enabled = busy == null) { onInstall(name) },
+                        contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, "Install $name", tint = Accent) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InstalledTab(busy: String?, log: (String) -> Unit) {
+    val context = LocalContext.current
+    val packages = remember(Linux.revision) { Linux.installedPackages(context) }
+    if (packages.isEmpty()) { Text("Nothing installed yet.", color = Label, fontSize = 14.sp); return }
+    Column(Modifier.fillMaxWidth().clip(ShapeM).background(Card).border(1.dp, Line, ShapeM)) {
+        packages.forEach { name ->
+            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(name, color = Ink, fontFamily = Mono, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                if (name != "alpine-baselayout" && name != "apk-tools" && name != "busybox" && name != "alpine-keys" && name != "musl-utils")
+                    Box(Modifier.size(40.dp).clip(CircleShape).clickable(enabled = busy == null) {
+                        Linux.removePackages(context, listOf(name), log) { log(if (it) "$name removed" else "Couldn't remove $name") }
+                    }, contentAlignment = Alignment.Center) { Icon(Icons.Filled.Delete, "Remove $name", tint = Label) }
+            }
+        }
     }
 }
