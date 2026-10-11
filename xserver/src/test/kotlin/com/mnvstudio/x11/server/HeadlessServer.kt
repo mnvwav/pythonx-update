@@ -15,6 +15,7 @@ fun main(args: Array<String>) {
     val out = File(args.getOrNull(3) ?: "shots").apply { mkdirs() }
     val server = XServer(w, h)
     server.listenTcp(display)
+    server.onClipboard = { println("clipboard: $it") }
     println("listening on 127.0.0.1:$display")
     while (true) {
         val line = readLine() ?: break
@@ -31,6 +32,7 @@ fun main(args: Array<String>) {
             "click" -> server.click(parts[1].toInt())
             "type" -> parts[1].forEach { server.type(it.code) }
             "key" -> server.tapKeysym(parts[1].toInt(16))
+            "clip" -> server.setClipboard(parts[1])
             "clients" -> println("clients ${synchronized(server) { server.clients.size }}")
         }
     }

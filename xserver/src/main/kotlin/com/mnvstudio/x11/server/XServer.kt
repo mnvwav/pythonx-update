@@ -459,15 +459,84 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
             send(old.client, 29) { it.i(4, t).i(8, old.window).i(12, selection) }
         }
         if (owner == 0) selections.remove(selection) else selections[selection] = Selection(owner, c, if (t == 0) time else t)
+        // A Linux app copied something: fetch it for the Android clipboard.
+        if (owner != 0 && (selection == atomClipboard || (syncPrimary && selection == Atoms.PRIMARY))) {
+            send(c, 30) { it.i(4, t).i(8, owner).i(12, CLIPWIN).i(16, selection).i(20, atomUtf8).i(24, atomClipProp) }
+        }
     }
 
     fun convertSelection(c: XClient, requestor: Int, selection: Int, target: Int, property: Int, t: Int) {
         val s = selections[selection]
-        if (s?.client != null) {
-            send(s.client, 30) { it.i(4, t).i(8, s.window).i(12, requestor).i(16, selection).i(20, target).i(24, property) }
-        } else {
-            send(c, 31) { it.i(4, t).i(8, requestor).i(12, selection).i(16, target).i(20, 0) }
+        when {
+            s?.client != null ->
+                send(s.client, 30) { it.i(4, t).i(8, s.window).i(12, requestor).i(16, selection).i(20, target).i(24, property) }
+            s != null && s.window == CLIPWIN && clipText != null -> {
+                val prop = answerClipboard(window(requestor), target, if (property == 0) target else property)
+                send(c, 31) { it.i(4, t).i(8, requestor).i(12, selection).i(16, target).i(20, prop) }
+            }
+            else -> send(c, 31) { it.i(4, t).i(8, requestor).i(12, selection).i(16, target).i(20, 0) }
         }
+    }
+
+    // ---------------------------------------------------------------- clipboard bridge
+
+    /** Called (on a server thread) with text a Linux app copied. */
+    @Volatile var onClipboard: ((String) -> Unit)? = null
+    /** Also sync the PRIMARY selection (text selected with the mouse) to Android. */
+    @Volatile var syncPrimary = false
+    private var clipText: String? = null
+    private val atomClipboard = atoms.intern("CLIPBOARD")
+    private val atomUtf8 = atoms.intern("UTF8_STRING")
+    private val atomTargets = atoms.intern("TARGETS")
+    private val atomText = atoms.intern("TEXT")
+    private val atomClipProp = atoms.intern("_MNV_CLIPBOARD")
+    /** Hidden window that owns selections for Android and receives copied text; not in the window tree. */
+    private val clipWindow = Window(CLIPWIN, null, root, -100, -100, 1, 1, 0, 2, 0).also { resources[CLIPWIN] = it }
+
+    /** Makes Android's clipboard text the X CLIPBOARD and PRIMARY selections. */
+    @Synchronized
+    fun setClipboard(text: String) {
+        if (text == clipText && selections[atomClipboard]?.window == CLIPWIN) return
+        clipText = text
+        for (sel in intArrayOf(atomClipboard, Atoms.PRIMARY)) {
+            val old = selections[sel]
+            if (old?.client != null) send(old.client, 29) { it.i(4, time).i(8, old.window).i(12, sel) }
+            selections[sel] = Selection(CLIPWIN, null, time)
+        }
+    }
+
+    /** Writes the clipboard to [requestor] in the [target] format; returns the property used, or 0 if unsupported. */
+    private fun answerClipboard(requestor: Window, target: Int, property: Int): Int {
+        val text = clipText ?: return 0
+        val prop = when (target) {
+            atomTargets -> {
+                val list = intArrayOf(atomTargets, atomUtf8, Atoms.STRING, atomText)
+                val b = java.nio.ByteBuffer.allocate(16).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                list.forEach { b.putInt(it) }
+                Property(Atoms.ATOM, 32, b.array())
+            }
+            atomUtf8, atomText -> Property(atomUtf8, 8, text.toByteArray(Charsets.UTF_8))
+            Atoms.STRING -> Property(Atoms.STRING, 8, text.toByteArray(Charsets.ISO_8859_1))
+            else -> return 0
+        }
+        requestor.props[property] = prop
+        propertyNotify(requestor, property, false)
+        return property
+    }
+
+    /** SelectionNotify sent to our hidden window: the copied text is in its property. */
+    internal fun clipboardReply(property: Int) {
+        val p = clipWindow.props.remove(atomClipProp) ?: return
+        if (property == 0) return
+        val text = if (p.type == Atoms.STRING) String(p.data, Charsets.ISO_8859_1) else String(p.data, Charsets.UTF_8)
+        clipText = text
+        onClipboard?.invoke(text)
+    }
+
+    /** Publishes X resources on the root window (e.g. Xft.dpi), read by toolkits at startup. */
+    @Synchronized
+    fun setResources(text: String) {
+        root.props[atoms.intern("RESOURCE_MANAGER")] = Property(Atoms.STRING, 8, text.toByteArray(Charsets.ISO_8859_1))
     }
 
     // ---------------------------------------------------------------- focus & grabs
@@ -706,6 +775,7 @@ class XServer(val width: Int, val height: Int, val dpi: Int = 96) {
         const val ROOT = 0x20
         const val COLORMAP = 0x21
         const val VISUAL = 0x22
+        const val CLIPWIN = 0x23
         const val OPAQUE = 0xFF000000.toInt()
         const val VENDOR = "MNV Studio X11"
     }

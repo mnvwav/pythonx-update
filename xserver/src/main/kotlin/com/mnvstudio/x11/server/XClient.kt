@@ -538,6 +538,10 @@ class XClient(
         val s = server
         val dest = r.u32(4); val mask = r.u32(8)
         val ev = r.bytes(12, 32)
+        if (dest == XServer.CLIPWIN) {
+            if (ev[0].toInt() and 0x7F == 31) s.clipboardReply(r.u32(12 + 20))
+            return
+        }
         ev[0] = (ev[0].toInt() or 0x80).toByte()
         var w: Window? = when (dest) {
             0 -> s.windowAt(s.pointerX, s.pointerY)
