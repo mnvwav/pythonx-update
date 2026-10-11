@@ -34,7 +34,7 @@ import kotlinx.coroutines.delay
 private val Ease = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
 /**
- * Opening animation: the X in the logo splits into four arms that fly apart while the "11" fades,
+ * Opening animation: the page in the logo fades and its X opens up,
  * "X11" rises in their place, then everything fades into the app. About 1.6 s.
  */
 @Composable
@@ -62,10 +62,10 @@ fun SplashScreen(onFinished: () -> Unit) {
             scaleX = s; scaleY = s; alpha = appear.value
         }) {
             // The X's four arms fly apart and the "11" fades, leaving room for the name.
-            drawToolMark(split = split.value)
+            drawToolMark(split = split.value * 0.6f)
         }
         Text(
-            "X11", color = BrandGold, fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 44.sp, letterSpacing = 2.sp,
+            "X11", color = Color.White, fontFamily = Poppins, fontWeight = FontWeight.Bold, fontSize = 44.sp, letterSpacing = 2.sp,
             modifier = Modifier.graphicsLayer {
                 alpha = word.value
                 translationY = (1f - word.value) * 40f

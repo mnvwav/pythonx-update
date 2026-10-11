@@ -315,8 +315,8 @@ fun ShareScreen(back: () -> Unit) {
                         modifier = Modifier.padding(top = 10.dp))
                 } else {
                     val link = "http://${ip ?: "PHONE-IP"}:${FileServer.port}/${FileServer.token}/"
-                    Column(Modifier.fillMaxWidth().clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1F1B10), Color(0xFF050505)))).border(1.dp, BrandGold.copy(alpha = 0.35f), ShapeL).padding(20.dp)) {
-                        Text("Sharing $folder", color = BrandGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Column(Modifier.fillMaxWidth().clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1C1C1F), Color(0xFF050505)))).border(1.dp, BrandAccent.copy(alpha = 0.35f), ShapeL).padding(20.dp)) {
+                        Text("Sharing $folder", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text("Open this on the other device:", color = Color.White.copy(alpha = 0.8f), modifier = Modifier.padding(top = 8.dp))
                         SelectionContainer { Text(link, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 15.sp, modifier = Modifier.padding(top = 6.dp)) }
                         Text("${FileServer.requests} requests so far" + if (FileServer.readOnly) " · read-only" else " · uploads allowed",

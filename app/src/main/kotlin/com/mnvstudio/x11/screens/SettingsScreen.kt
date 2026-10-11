@@ -175,15 +175,15 @@ fun SettingsScreen(prefs: Prefs, navigate: (String) -> Unit, onReplayOnboarding:
                         Column(Modifier.widthIn(max = 680.dp)) {
                             // Header in the brand style.
                             Row(Modifier.fillMaxWidth().clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(BrandGradient))
-                                .border(1.dp, BrandGold.copy(alpha = 0.25f), ShapeL).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                                .border(1.dp, BrandAccent.copy(alpha = 0.25f), ShapeL).padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Logo(52.dp)
                                 Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                                    Text("X11", color = BrandGold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text("X11", color = BrandAccent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                     Text(if (XHolder.server != null) "Display :${XHolder.display} running · ${XHolder.clients} apps" else "Display stopped",
                                         color = Color.White.copy(alpha = 0.75f), fontSize = 13.sp)
                                 }
-                                if (XHolder.server != null) Text("Restart", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clip(CircleShape).background(BrandGold).clickable { XHolder.restart(context, "settings") }
+                                if (XHolder.server != null) Text("Restart", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clip(CircleShape).background(BrandAccent).clickable { XHolder.restart(context, "settings") }
                                         .padding(horizontal = 14.dp, vertical = 8.dp))
                             }
                             Spacer(Modifier.height(14.dp))

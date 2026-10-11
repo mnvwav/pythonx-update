@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- X11 launcher mark: gold on black. Same geometry as drawToolMark() in ui/Components.kt: the "X11" wordmark. -->
+<!-- X11 launcher mark. Same geometry as drawToolMark() in ui/Components.kt: a page with a folded corner and a red/black X. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:strokeColor="#FFF7C948" android:strokeWidth="9" android:strokeLineCap="round" android:strokeLineJoin="round"
-        android:pathData="M27,39L49,69M49,39L27,69M57,45L63,39L63,69M73,45L79,39L79,69" />
+    <path android:fillColor="#FFF4F5F7" android:pathData="M24,24H72L86,38V84H24Z" />
+    <path android:fillColor="#FFC9CCD1" android:pathData="M72,24V38H86Z" />
+    <path android:strokeColor="#FF111111" android:strokeWidth="9" android:strokeLineCap="round" android:pathData="M66,46L40,72" />
+    <path android:strokeColor="#FFFF3D57" android:strokeWidth="9" android:strokeLineCap="round" android:pathData="M40,46L66,72" />
 </vector>

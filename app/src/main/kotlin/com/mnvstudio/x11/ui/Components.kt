@@ -91,33 +91,37 @@ private fun tap(onClick: () -> Unit): () -> Unit {
 fun accentGradient(): androidx.compose.ui.graphics.Brush =
     androidx.compose.ui.graphics.Brush.linearGradient(listOf(androidx.compose.ui.graphics.lerp(Accent, Color.White, 0.12f), androidx.compose.ui.graphics.lerp(Accent, Color(0xFF8A5A00), 0.35f)))
 
-/** Brand colors: gold wordmark on a black tile. */
-val BrandGradient = listOf(Color(0xFF1A1A1A), Color(0xFF000000))
-val BrandGold = Color(0xFFF7C948)
+/** Brand colors: a white page with a red/black X on a black tile. */
+val BrandGradient = listOf(Color(0xFF1A1A1A), Color(0xFF050505))
+val BrandAccent = Color(0xFFFF3D57)
+private val PageWhite = Color(0xFFF4F5F7)
+private val FoldGrey = Color(0xFFC9CCD1)
+private val InkBlack = Color(0xFF111111)
 
 /**
- * The X11 mark: the "X11" wordmark drawn as rounded strokes. Coordinates come from the 108-unit launcher icon
- * (res/drawable/ic_launcher_foreground.xml), whose mark spans 22..84; that region is fitted to this canvas.
- * [split] (0..1) pushes the X's four arms outward and fades the "11", for the opening animation.
+ * The X11 mark: a page with a folded corner and an X (one red stroke over a black one). Coordinates come from the
+ * 108-unit launcher icon (res/drawable/ic_launcher_foreground.xml), whose mark spans 24..86 × 24..84; that region is
+ * fitted to this canvas. [split] (0..1) pulls the X apart and fades the page, for the opening animation.
  */
-fun DrawScope.drawToolMark(color: Color = BrandGold, split: Float = 0f) {
+fun DrawScope.drawToolMark(split: Float = 0f) {
     val k = size.minDimension / 62f
-    val ox = (size.width - 62f * k) / 2 - 22f * k
+    val ox = (size.width - 62f * k) / 2 - 24f * k
     val oy = (size.height - 62f * k) / 2 - 23f * k
     fun p(x: Float, y: Float) = Offset(ox + x * k, oy + y * k)
-    val w = 9f * k
-    val cap = androidx.compose.ui.graphics.StrokeCap.Round
-    // The X as four arms from its centre, so the splash can pull them apart.
-    val cx = 38f; val cy = 54f
-    for ((x, y) in listOf(27f to 39f, 49f to 69f, 49f to 39f, 27f to 69f)) {
-        val dx = (x - cx) * split * 1.2f; val dy = (y - cy) * split * 1.2f
-        drawLine(color, p(cx + dx, cy + dy), p(x + dx, y + dy), w, cap)
+    val pageAlpha = 1f - split
+    if (pageAlpha > 0f) {
+        val page = androidx.compose.ui.graphics.Path().apply { moveTo(24f, 24f); lineTo(72f, 24f); lineTo(86f, 38f); lineTo(86f, 84f); lineTo(24f, 84f); close()
+            transform(androidx.compose.ui.graphics.Matrix().apply { translate(ox, oy); scale(k, k) }) }
+        val fold = androidx.compose.ui.graphics.Path().apply { moveTo(72f, 24f); lineTo(72f, 38f); lineTo(86f, 38f); close()
+            transform(androidx.compose.ui.graphics.Matrix().apply { translate(ox, oy); scale(k, k) }) }
+        drawPath(page, PageWhite.copy(alpha = pageAlpha)); drawPath(fold, FoldGrey.copy(alpha = pageAlpha))
     }
-    val ones = color.copy(alpha = color.alpha * (1f - split))
-    for (x in listOf(63f, 79f)) {
-        drawLine(ones, p(x - 6f, 45f), p(x, 39f), w, cap)
-        drawLine(ones, p(x, 39f), p(x, 69f), w, cap)
-    }
+    val w = 9f * k; val cap = androidx.compose.ui.graphics.StrokeCap.Round
+    val d = 14f * split
+    // On the dark splash the black stroke turns white so it stays visible once the page fades.
+    val dark = androidx.compose.ui.graphics.lerp(InkBlack, PageWhite, split)
+    drawLine(dark, p(66f + d, 46f - d), p(40f - d, 72f + d), w, cap)
+    drawLine(BrandAccent, p(40f - d, 46f - d), p(66f + d, 72f + d), w, cap)
 }
 
 @Composable
