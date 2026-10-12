@@ -152,7 +152,7 @@ fun HomeScreen(prefs: Prefs, navigate: (String) -> Unit) {
                     order.forEachIndexed { i, id -> EditRow(prefs, order, i, id) }
                     Text("Done", color = Accent, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(12.dp).clickable { editing = false })
                 } else order.filter { it !in prefs.dashboardHidden }.forEachIndexed { i, id ->
-                    Box(Modifier.enter(i, 70)) { when (id) {
+                    Column(Modifier.enter(i, 70)) { when (id) {
                         "status" -> StatusWidget(prefs, navigate)
                         "superpowers" -> SuperpowersWidget(navigate)
                         "resources" -> ResourcesWidget(navigate)
@@ -204,6 +204,7 @@ private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
     val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
     val glow by pulse.animateFloat(0.35f, 1f, androidx.compose.animation.core.infiniteRepeatable(
         androidx.compose.animation.core.tween(1100), androidx.compose.animation.core.RepeatMode.Reverse), label = "glow")
+    Column(Modifier.fillMaxWidth()) {
     Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(ShapeL).background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF1E1D1F), Color(0xFF121213))))
         .border(1.dp, com.mnvstudio.x11.ui.BrandAccent.copy(alpha = 0.22f), ShapeL).padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -239,6 +240,7 @@ private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
         if (!batteryOk) Banner(Icons.Filled.BatteryAlert, "Battery saving may stop X11 in the background. Tap to allow it to keep running.", Warn) {
             Launcher.requestBatteryExemption(context); batteryOk = true
         }
+    }
     }
 }
 
@@ -424,6 +426,7 @@ private fun SuperpowersWidget(navigate: (String) -> Unit) {
         Power(Icons.Filled.DesktopWindows, "Full Linux desktop",
             when { installing != null -> installing!!; desktopInstalled -> "XFCE with panel, menu and file manager · tap to open"; else -> "One tap installs XFCE (about 150 MB) and opens it" },
             busy = installing != null, enabled = ready) {
+            if (!ready) { navigate("linux"); return@Power }
             if (xfce == null) return@Power
             if (desktopInstalled) { if (com.mnvstudio.x11.Launcher.open(context, xfce)) navigate("display") }
             else {
@@ -439,7 +442,7 @@ private fun SuperpowersWidget(navigate: (String) -> Unit) {
             if (phone) "Your Downloads, photos and documents are at ~/Phone" else "Let Linux apps open and save files on your phone",
             on = phone) { if (!phone && activity != null) com.mnvstudio.x11.bridge.PhoneStorage.request(activity) }
         Power(Icons.Filled.NotificationsActive, "Linux talks to your phone",
-            "notify-send, links, clipboard, vibration and speech reach Android · tap to try", enabled = ready) { demo = true }
+            "notify-send, links, clipboard, vibration and speech reach Android · tap to try", enabled = ready) { if (ready) demo = true else navigate("linux") }
     }
     if (demo) AlertDialog(onDismissRequest = { demo = false }, containerColor = Card,
         title = { Text("Linux → Android", color = Ink) },
@@ -471,7 +474,7 @@ private fun SuperpowersWidget(navigate: (String) -> Unit) {
 @Composable
 private fun Power(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String, on: Boolean = false, busy: Boolean = false,
                   enabled: Boolean = true, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).pressable(enabled = enabled && !busy, scaleTo = 0.98f, onClick = onClick).clip(ShapeM)
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).pressable(enabled = !busy, scaleTo = 0.98f, onClick = onClick).clip(ShapeM)
         .background(CardHigh).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(40.dp).clip(ShapeM).background(com.mnvstudio.x11.ui.accentGradient()), contentAlignment = Alignment.Center) {
             if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = OnAccent, strokeWidth = 2.dp)
@@ -479,7 +482,7 @@ private fun Power(icon: androidx.compose.ui.graphics.vector.ImageVector, title: 
         }
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
             Text(title, color = if (enabled) Ink else Faint, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text(body, color = Label, fontSize = 12.sp, lineHeight = 16.sp)
+            Text(if (enabled) body else "Set up Linux first · tap to start", color = if (enabled) Label else Accent, fontSize = 12.sp, lineHeight = 16.sp)
         }
         if (on) Icon(Icons.Filled.CheckCircle, "On", tint = Live) else Icon(Icons.Filled.ChevronRight, null, tint = Faint)
     }
