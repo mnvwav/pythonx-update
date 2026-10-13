@@ -75,7 +75,10 @@ private fun Running(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
         v.requestFocus()
         (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
     }
-    DisposableEffect(Unit) { Pip.displayOpen = true; onDispose { Pip.displayOpen = false } }
+    DisposableEffect(Unit) {
+        Pip.displayOpen = true; ExternalDisplay.attach(context)
+        onDispose { Pip.displayOpen = false; ExternalDisplay.detach(context) }
+    }
 
     Column(Modifier.fillMaxSize().background(Color.Black).imePadding()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -83,13 +86,17 @@ private fun Running(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                 view = v; v.onKeyboardRequest = { keyboard() }
                 XorgEngine.client?.let { c -> c.onCursor = { px, w, h, hx, hy -> v.setCursor(px, w, h, hx, hy) }; c.requestCursor() }
             } }, Modifier.fillMaxSize(), update = { v ->
-                v.directTouch = prefs.touchMode == Prefs.MODE_DIRECT
+                // With a monitor attached the phone is a trackpad (you look at the monitor, not the phone).
+                v.directTouch = prefs.touchMode == Prefs.MODE_DIRECT && !ExternalDisplay.active
                 v.pointerSpeed = prefs.pointerSpeed
                 v.smooth = prefs.smoothScaling
                 v.maxFps = prefs.maxFps
                 com.mnvstudio.x11.display.InputConfig.from(prefs).let { c -> v.gamepad = c.gamepad; v.stickMouse = c.stickMouse }
                 v.onModsUsed = { mods = emptySet() }
             })
+            if (ExternalDisplay.active) Text("Showing on ${ExternalDisplay.name} · this screen is the trackpad", color = Color.White,
+                fontSize = 12.sp, modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).clip(CircleShape)
+                    .background(Color(0x99000000)).padding(horizontal = 12.dp, vertical = 6.dp))
             if (XHolder.clients == 0 && !Pip.active) {
                 Column(Modifier.align(Alignment.Center).padding(24.dp).clip(ShapeL).background(Color(0xE6161619)).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
