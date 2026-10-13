@@ -13,13 +13,13 @@ class XTile : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val turnOn = XHolder.server == null
+        val turnOn = !XHolder.running
         if (!turnOn) XService.stop(this)
         else runCatching { XHolder.ensureStarted(this) }.onFailure { AppLog.e("Couldn't start from the tile", it) }
         update(on = turnOn)
     }
 
-    private fun update(on: Boolean = XHolder.server != null) {
+    private fun update(on: Boolean = XHolder.running) {
         val tile = qsTile ?: return
         tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.label = "X11"

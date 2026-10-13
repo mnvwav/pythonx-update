@@ -173,7 +173,10 @@ object Linux {
         // Run as the chosen normal user (Users screen) unless this is a system task.
         val user = Prefs.of(app).linuxUser
         val asUser = user.isNotEmpty() && user != "root" && !command.startsWith("apk ")
-        val shellCommand = if (asUser) "su $user -c ${quote(command)}" else command
+        // With the X.Org engine an app may start while Xvfb is still booting: wait (up to 20 s) for its socket.
+        val waited = if (jobName != null && Prefs.of(app).engine == Prefs.ENGINE_XORG)
+            "i=0; while [ ! -e /tmp/.X11-unix/X$display ] && [ \$i -lt 100 ]; do sleep 0.2; i=\$((i+1)); done; $command" else command
+        val shellCommand = if (asUser) "su $user -c ${quote(waited)}" else waited
         val args = listOf(
             "$lib/libproot.so", "--kill-on-exit", "-0", "--link2symlink",
             "-r", root.path,

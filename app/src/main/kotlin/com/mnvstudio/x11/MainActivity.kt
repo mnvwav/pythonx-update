@@ -171,7 +171,7 @@ class MainActivity : ComponentActivity() {
         prefs = Prefs.of(this)
         if (savedInstanceState == null) handleIntent(intent)
         // Session restoration: the display was running when the app was last closed (or killed), so bring it back.
-        if (savedInstanceState == null && prefs.onboarded && prefs.restoreSession && prefs.wasRunning && XHolder.server == null) {
+        if (savedInstanceState == null && prefs.onboarded && prefs.restoreSession && prefs.wasRunning && !XHolder.running) {
             val s = Sessions.active(this)
             if (s != null) Sessions.launch(this, s) else XHolder.ensureStarted(this)
             AppLog.i("Restored the previous session")

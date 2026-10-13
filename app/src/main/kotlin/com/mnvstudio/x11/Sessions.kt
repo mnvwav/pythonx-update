@@ -192,7 +192,7 @@ object Sessions {
     fun launch(context: Context, s: Session): Boolean {
         val app = context.applicationContext
         val p = Prefs.of(app)
-        val switching = XHolder.server != null && p.activeSession != s.id
+        val switching = XHolder.running && p.activeSession != s.id
         if (switching) { Linux.stopAll(); XHolder.stop() }
         p.fromJson(s.settings)
         p.linuxProfile = s.linuxProfile
@@ -216,7 +216,7 @@ object Sessions {
         var proc: Process? = null
         proc = Linux.run(context, command, XHolder.display, jobName = name, env = env) { code ->
             val byUser = proc?.let { stoppedByUser.remove(it) } == true
-            if (code != 0 && !byUser && s.restartCrashed && XHolder.server != null && Prefs.of(context).activeSession == s.id) {
+            if (code != 0 && !byUser && s.restartCrashed && XHolder.running && Prefs.of(context).activeSession == s.id) {
                 val now = SystemClock.elapsedRealtime()
                 val times = crashes.getOrPut(key) { mutableListOf() }.apply { removeAll { now - it > 60_000 }; add(now) }
                 if (times.size <= 3) {
@@ -224,7 +224,7 @@ object Sessions {
                     main.postDelayed({ startApp(context, s, key, name, command) }, 1500)
                 } else AppLog.e("$name keeps crashing; not restarting again")
             }
-            if (Linux.jobs.isEmpty() && s.onLastAppClosed == "stop" && XHolder.server != null) {
+            if (Linux.jobs.isEmpty() && s.onLastAppClosed == "stop" && XHolder.running) {
                 AppLog.i("Last app closed: stopping the display (session rule)")
                 XService.stop(context)
             }

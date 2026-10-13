@@ -71,6 +71,8 @@ class Prefs private constructor(context: Context) {
     var maxFps by pref("maxFps", 60)
     var smoothScaling by pref("smooth", true)
     /** "auto", "landscape" or "portrait" while the display is open. */
+    /** Which X server: the full X.Org one inside Linux (default) or the app's own lightweight server. */
+    var engine by pref("engine", ENGINE_XORG)
     var orientation by pref("orientation", "landscape")
     /** Float the display in picture-in-picture when leaving the app with Linux apps open. */
     var autoPip by pref("autoPip", true)
@@ -252,6 +254,8 @@ class Prefs private constructor(context: Context) {
     fun recommendedDpi(): Int = (metrics.densityDpi * scale).roundToInt().coerceIn(96, 192)
 
     companion object {
+        const val ENGINE_XORG = "xorg"
+        const val ENGINE_BUILTIN = "builtin"
         const val RES_NATIVE = "Native"
         const val RES_CUSTOM = "Custom"
         const val MODE_TOUCHPAD = "touchpad"

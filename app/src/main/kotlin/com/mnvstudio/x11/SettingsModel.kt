@@ -38,6 +38,9 @@ object SettingsModel {
 
     fun items(p: Prefs): List<SettingItem> = listOf(
         // Display
+        SettingItem("engine", "Display", "X server", "X.Org runs every Linux app (like a PC); Built-in is lighter but supports fewer apps",
+            Kind.CHOICE, needsRestart = true, options = listOf(Prefs.ENGINE_XORG to "X.Org (full)", Prefs.ENGINE_BUILTIN to "Built-in (light)"),
+            keywords = "xsdl xorg xvfb engine compatibility extensions"),
         SettingItem("resolution", "Display", "Resolution", "Size of the Linux screen", Kind.CHOICE, needsRestart = true,
             options = Prefs.RESOLUTIONS.map { it to if (it == Prefs.RES_NATIVE) "Fit my screen" else it }, keywords = "size pixels"),
         SettingItem("scale", "Display", "Detail", "Lower makes apps bigger and faster", Kind.SLIDER, range = 0.25f..1f, steps = 2,

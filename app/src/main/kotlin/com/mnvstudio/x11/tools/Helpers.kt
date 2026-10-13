@@ -99,10 +99,17 @@ object ProfileCompare {
 }
 
 object DisplayTools {
+    /** The current screen from whichever engine runs: width, height, ARGB pixels. */
+    private fun screen(): Triple<Int, Int, IntArray>? {
+        XHolder.server?.let { s -> return Triple(s.width, s.height, synchronized(s) { s.framebuffer.copyOf() }) }
+        val f = com.mnvstudio.x11.xorg.XorgEngine.frame ?: return null
+        return Triple(f.width, f.height, IntArray(f.width * f.height).also { f.copyTo(it) })
+    }
+
     fun screenshot(context: Context): String {
-        val s = XHolder.server ?: return "The display isn't running."
-        val bmp = Bitmap.createBitmap(s.width, s.height, Bitmap.Config.ARGB_8888)
-        synchronized(s) { bmp.setPixels(s.framebuffer, 0, s.width, 0, 0, s.width, s.height) }
+        val (w, h, px) = screen() ?: return "The display isn't running."
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        bmp.setPixels(px, 0, w, 0, 0, w, h)
         val name = "X11_${java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())}.png"
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name); put(MediaStore.Images.Media.MIME_TYPE, "image/png")
@@ -110,23 +117,24 @@ object DisplayTools {
         }
         val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return "Couldn't create the image file."
         context.contentResolver.openOutputStream(uri)?.use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        return "Saved Pictures/X11/$name (${s.width}×${s.height})"
+        return "Saved Pictures/X11/$name (${w}×${h})"
     }
 
     fun pixel(x: Int, y: Int): List<Pair<String, String>> {
-        val s = XHolder.server ?: return listOf("Display" to "not running")
-        if (x !in 0 until s.width || y !in 0 until s.height) return listOf("Position" to "outside the ${s.width}×${s.height} screen")
-        val c = synchronized(s) { s.framebuffer[y * s.width + x] } and 0xFFFFFF
+        val (w, h, px) = screen() ?: return listOf("Display" to "not running")
+        if (x !in 0 until w || y !in 0 until h) return listOf("Position" to "outside the ${w}×${h} screen")
+        val c = px[y * w + x] and 0xFFFFFF
         val r = c shr 16; val g = (c shr 8) and 0xFF; val b = c and 0xFF
         return listOf("Position" to "$x, $y", "Hex" to "#%06X".format(c), "RGB" to "$r, $g, $b",
-            "Window" to (synchronized(s) { s.wm?.windows()?.firstOrNull { it.focused }?.title } ?: "-"))
+            "Window" to (XHolder.server?.let { s -> synchronized(s) { s.wm?.windows()?.firstOrNull { it.focused }?.title } } ?: "-"))
     }
 
     fun capabilities(): List<Pair<String, String>> {
         val s = XHolder.server
         return listOf(
-            "Running" to if (s != null) "yes, display :${XHolder.display}" else "no",
-            "Resolution" to (s?.let { "${it.width}×${it.height}" } ?: "-"),
+            "Running" to if (XHolder.running) "yes, display :${XHolder.display}" else "no",
+            "Engine" to if (XHolder.usingXorg) "X.Org (Xvfb in Linux): all extensions" else "Built-in",
+            "Resolution" to (if (XHolder.running) "${XHolder.width}×${XHolder.height}" else "-"),
             "DPI" to (s?.dpi?.toString() ?: "-"), "Depth" to "24-bit TrueColor",
             "Clients" to "${XHolder.clients}",
         ) + Inspector.EXTENSIONS.map { (n, ok, what) -> n to ((if (ok) "yes · " else "no · ") + what) }

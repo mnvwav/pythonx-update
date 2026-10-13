@@ -112,6 +112,11 @@ fun DisplayScreen(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
         }
     }
 
+    // The X.Org engine has its own view (its screen comes from Xvfb's framebuffer, input goes in through XTEST).
+    if (server == null && com.mnvstudio.x11.xorg.XorgEngine.state != com.mnvstudio.x11.xorg.XorgEngine.State.STOPPED) {
+        com.mnvstudio.x11.xorg.XorgDisplay(prefs, onBack, onApps)
+        return
+    }
     if (server == null) {
         Column(Modifier.fillMaxSize().background(Color.Black).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {

@@ -198,8 +198,7 @@ private fun WidgetCard(content: @Composable () -> Unit) {
 @Composable
 private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
     val context = LocalContext.current
-    val server = XHolder.server
-    val running = server != null
+    val running = XHolder.running
     // Hero card in the brand gradient: the one thing most people come here for.
     val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
     val glow by pulse.animateFloat(0.35f, 1f, androidx.compose.animation.core.infiniteRepeatable(
@@ -214,12 +213,13 @@ private fun StatusWidget(prefs: Prefs, navigate: (String) -> Unit) {
             if (running) Text(if (XHolder.clients == 1) "1 app" else "${XHolder.clients} apps", color = Color.White, fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.2f)).padding(horizontal = 10.dp, vertical = 4.dp))
         }
-        Text(Sessions.active(context)?.let { "Session: ${it.name}" } ?: "Ready when you are", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
+        Text(com.mnvstudio.x11.xorg.XorgEngine.status.ifEmpty { null } ?: Sessions.active(context)?.let { "Session: ${it.name}" }
+            ?: if (prefs.engine == Prefs.ENGINE_XORG) "X.Org engine · full compatibility" else "Built-in engine", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
             modifier = Modifier.padding(top = 4.dp))
         Spacer(Modifier.height(16.dp))
         Row {
             for ((label, value) in listOf("Display" to ":${if (running) XHolder.display else prefs.display}",
-                "Resolution" to (server?.let { "${it.width}×${it.height}" } ?: prefs.screenSize().let { "${it.first}×${it.second}" }),
+                "Resolution" to ((if (running && XHolder.width > 0) "${XHolder.width}×${XHolder.height}" else null) ?: prefs.screenSize().let { "${it.first}×${it.second}" }),
                 "DPI" to "${prefs.dpi()}")) {
                 Column(Modifier.weight(1f)) {
                     Text(label, color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)

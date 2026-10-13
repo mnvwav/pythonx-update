@@ -95,7 +95,7 @@ fun ConsoleScreen(prefs: Prefs, navigate: (String) -> Unit, onBack: () -> Unit) 
         busy = true
         // Commands ending in & keep running as apps; others are waited for here.
         val background = command.endsWith("&")
-        val p = Linux.run(context, command.removeSuffix("&").trim(), XHolder.display.takeIf { XHolder.server != null } ?: prefs.display,
+        val p = Linux.run(context, command.removeSuffix("&").trim(), XHolder.display.takeIf { XHolder.running } ?: prefs.display,
             jobName = if (background) command.removeSuffix("&").trim().substringBefore(' ') else null, onOutput = ::add) { code ->
             if (!background) { add("[exit $code]"); busy = false; ConsoleState.running = null }
         }

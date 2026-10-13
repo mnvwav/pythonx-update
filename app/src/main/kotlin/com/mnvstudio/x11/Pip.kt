@@ -21,8 +21,7 @@ object Pip {
 
     fun enter(activity: Activity): Boolean {
         if (!supported(activity)) return false
-        val s = XHolder.server
-        val ratio = if (s == null) Rational(16, 9) else Rational(s.width, s.height).let { r ->
+        val ratio = if (XHolder.width <= 0) Rational(16, 9) else Rational(XHolder.width, XHolder.height).let { r ->
             // Android only accepts ratios between 1:2.39 and 2.39:1.
             when { r.toFloat() > 2.39f -> Rational(239, 100); r.toFloat() < 1 / 2.39f -> Rational(100, 239); else -> r }
         }

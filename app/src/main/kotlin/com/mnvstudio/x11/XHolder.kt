@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import com.mnvstudio.x11.linux.Catalog
 import com.mnvstudio.x11.linux.Linux
 import com.mnvstudio.x11.server.XServer
+import com.mnvstudio.x11.xorg.XorgEngine
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -45,11 +46,28 @@ object XHolder {
         return ok
     }
 
+    /** Either engine is on (the X.Org one counts while it is still starting). */
+    val running: Boolean get() = server != null || XorgEngine.state == XorgEngine.State.STARTING || XorgEngine.state == XorgEngine.State.RUNNING
+    val usingXorg: Boolean get() = server == null && XorgEngine.state != XorgEngine.State.STOPPED
+    val width: Int get() = server?.width ?: XorgEngine.width
+    val height: Int get() = server?.height ?: XorgEngine.height
+
     @Synchronized
     fun start(context: Context, prefs: Prefs): Boolean {
-        if (server != null) return true
+        if (running) return true
         val app = context.applicationContext
         appContext = app
+        if (prefs.engine == Prefs.ENGINE_XORG) {
+            // The full X.Org server inside Linux (like XSDL): every extension, every app.
+            val (w, h) = prefs.screenSize()
+            display = prefs.display; error = null; clients = 0
+            XorgEngine.start(app, w, h, prefs.dpi(), prefs.display, onReady = {
+                idleSince = SystemClock.elapsedRealtime()
+                afterStart(app, prefs)
+                pollXorgClients()
+            }, onFail = { msg -> error = msg })
+            return true
+        }
         val (w, h) = prefs.screenSize()
         val d = prefs.display
         val s = XServer(w, h, prefs.dpi())
@@ -137,7 +155,7 @@ object XHolder {
         main.postDelayed(object : Runnable {
             override fun run() {
                 val ctx = appContext ?: return
-                if (server == null) return
+                if (!running) return
                 val idle = clients == 0 && Linux.runningCount() == 0 && SystemClock.elapsedRealtime() - idleSince > minutes * 60_000L
                 if (idle) { AppLog.i("Stopping the idle server"); XService.stop(ctx) } else main.postDelayed(this, 60_000)
             }
@@ -158,8 +176,24 @@ object XHolder {
         }, 400)
     }
 
+    /** With X.Org the app isn't the server, so "apps" means Linux programs started from the app. */
+    private fun pollXorgClients() {
+        main.postDelayed(object : Runnable {
+            override fun run() {
+                if (XorgEngine.state != XorgEngine.State.RUNNING) return
+                val n = Linux.runningCount()
+                if (n != clients) updateClients(n)
+                main.postDelayed(this, 1500)
+            }
+        }, 1500)
+    }
+
     @Synchronized
     fun stop() {
+        if (server == null && XorgEngine.state != XorgEngine.State.STOPPED) {
+            Linux.stopAll(); XorgEngine.stop(); clients = 0
+            AppLog.i("X.Org stopped"); return
+        }
         val s = server ?: return
         server = null
         clients = 0
