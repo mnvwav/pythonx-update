@@ -28,9 +28,10 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            // R8 (ProGuard): shrinks, optimizes and obfuscates release builds. Rules: proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
