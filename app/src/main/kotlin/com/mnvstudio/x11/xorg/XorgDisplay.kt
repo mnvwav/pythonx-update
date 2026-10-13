@@ -87,6 +87,7 @@ private fun Running(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                 v.pointerSpeed = prefs.pointerSpeed
                 v.smooth = prefs.smoothScaling
                 v.maxFps = prefs.maxFps
+                com.mnvstudio.x11.display.InputConfig.from(prefs).let { c -> v.gamepad = c.gamepad; v.stickMouse = c.stickMouse }
                 v.onModsUsed = { mods = emptySet() }
             })
             if (XHolder.clients == 0 && !Pip.active) {

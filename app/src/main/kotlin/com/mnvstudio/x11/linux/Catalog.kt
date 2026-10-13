@@ -52,6 +52,12 @@ object Catalog {
         LinuxApp("nano", "nano", "Simple terminal text editor", listOf("nano", "xterm", "font-dejavu"), "nano", "$TERM -e nano", "Developer", terminal = true),
         LinuxApp("vim", "Vim", "Powerful terminal text editor", listOf("vim", "xterm", "font-dejavu"), "vim", "$TERM -e vim", "Developer", terminal = true),
         LinuxApp("python3", "Python", "Python 3 interpreter", listOf("python3", "xterm", "font-dejavu"), "python3", "$TERM -e python3", "Developer", terminal = true),
+        LinuxApp("devkit", "Developer kit", "Python, Node.js, Go, Rust, C/C++ compilers, Git and make, ready in a terminal",
+            listOf("python3", "py3-pip", "nodejs", "npm", "go", "rust", "cargo", "build-base", "git", "xterm", "font-dejavu"), "cargo", TERM, "Developer", terminal = true),
+        LinuxApp("code-server", "VS Code (browser)", "VS Code in the built-in browser via code-server (installs with npm, needs ~1 GB)",
+            listOf("nodejs", "npm", "build-base", "python3", "git", "bash", "libstdc++", "krb5-dev", "libsecret-dev"), "code-server",
+            "command -v code-server >/dev/null || npm install -g --unsafe-perm code-server; code-server --auth none --bind-addr 127.0.0.1:8080 & sleep 4; android open http://127.0.0.1:8080; wait",
+            "Developer", experimental = true),
         LinuxApp("git", "Git", "Version control, in a terminal", listOf("git", "xterm", "font-dejavu"), "git", "$TERM", "Developer", terminal = true),
         // Graphics
         LinuxApp("ristretto", "Ristretto", "Image viewer", gui("ristretto"), "ristretto", "ristretto", "Graphics"),

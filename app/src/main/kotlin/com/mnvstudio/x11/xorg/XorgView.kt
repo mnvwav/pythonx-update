@@ -34,6 +34,10 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
     var smooth = true
     var maxFps = 60
     var onKeyboardRequest: () -> Unit = {}
+    /** Game controller button (Android key code) → X keycode; shoulder buttons L1/R1 can map to mouse clicks. */
+    var gamepad: Map<Int, Int> = emptyMap()
+    var stickMouse = true
+    private var stickX = 0f; private var stickY = 0f
 
     private val input = Executors.newSingleThreadExecutor()
     private var bitmap: Bitmap? = null
@@ -65,6 +69,11 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
 
     override fun doFrame(nanos: Long) {
         if (!running) return
+        // Left stick as a mouse: speed grows with how far it's pushed.
+        if (stickMouse && (abs(stickX) > 0.15f || abs(stickY) > 0.15f)) bitmap?.let { b ->
+            px = (px + stickX * abs(stickX) * 18f).coerceIn(0f, b.width - 1f); py = (py + stickY * abs(stickY) * 18f).coerceIn(0f, b.height - 1f)
+            val x = px.toInt(); val y = py.toInt(); send { motion(x, y) }; invalidate()
+        }
         if (nanos - lastFrame >= 1_000_000_000L / maxFps.coerceIn(10, 120) - 2_000_000) {
             lastFrame = nanos
             val f = XorgEngine.frame
@@ -148,6 +157,9 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
 
     /** A real mouse (USB, Bluetooth, DeX): absolute position, its own buttons and wheel. */
     override fun onGenericMotionEvent(e: MotionEvent): Boolean {
+        if (e.isFromSource(android.view.InputDevice.SOURCE_JOYSTICK) && e.actionMasked == MotionEvent.ACTION_MOVE) {
+            stickX = e.getAxisValue(MotionEvent.AXIS_X); stickY = e.getAxisValue(MotionEvent.AXIS_Y); return true
+        }
         if (!e.isFromSource(android.view.InputDevice.SOURCE_MOUSE) && !e.isFromSource(android.view.InputDevice.SOURCE_TOUCHPAD)) return super.onGenericMotionEvent(e)
         bitmap ?: return true
         when (e.actionMasked) {
@@ -270,6 +282,13 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
 
     private fun key(code: Int, e: KeyEvent, down: Boolean): Boolean {
         if (code == KeyEvent.KEYCODE_BACK) return false
+        if (KeyEvent.isGamepadButton(code)) {
+            when (code) {
+                KeyEvent.KEYCODE_BUTTON_L1 -> if (!gamepad.containsKey(code)) { send { button(1, down) }; return true }
+                KeyEvent.KEYCODE_BUTTON_R1 -> if (!gamepad.containsKey(code)) { send { button(3, down) }; return true }
+            }
+            gamepad[code]?.let { x -> send { key(x, down) }; return true }
+        }
         KEYS[code]?.let { sym -> send { keysym(sym, down) }; return true }
         val ch = e.getUnicodeChar(e.metaState and (KeyEvent.META_CTRL_MASK or KeyEvent.META_ALT_MASK).inv())
         if (ch > 0) {

@@ -225,6 +225,17 @@ private fun Devices(p: Prefs) {
     SectionTitle("Game controller")
     SurfaceCard(padding = 16.dp) {
         ToggleRow("Left stick moves the pointer", null, p.stickMouse) { p.stickMouse = it }
+        // Ready-made mappings (X keycodes: 65 Space, 37 Ctrl, 50 Shift, 52 Z, 53 X, 54 C, 38 A, 39 S, 24 Q, 25 W, 26 E, 27 R, 41 F, 62 right Shift).
+        val presets = listOf(
+            "Default" to "",
+            "Platformer" to "A=65,B=52,X=53,Y=54,L1=50,R1=37,Start=ENTER,Select=ESC",
+            "Shooter" to "A=65,B=37,X=27,Y=26,L1=50,R1=41,Start=ESC,Select=TAB",
+            "Retro (RetroArch)" to "A=53,B=52,X=39,Y=38,L1=24,R1=25,Start=ENTER,Select=62",
+        )
+        Text("Presets", color = Label, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+        Chips(presets.map { it.first }, presets.firstOrNull { it.second == p.gamepadMap }?.first ?: "") { name ->
+            p.gamepadMap = presets.first { it.first == name }.second
+        }
         val custom = p.gamepadMap.split(',').mapNotNull { e -> e.split('=').takeIf { it.size == 2 }?.let { it[0] to it[1] } }.toMap()
         InputConfig.GAMEPAD_BUTTONS.forEach { (code, name) ->
             val default = InputConfig.DEFAULT_GAMEPAD[code]?.let { c -> listOf("ENTER", "ESC", "TAB", "UP", "DOWN", "LEFT", "RIGHT").firstOrNull { ExtraKeys.keycode(it) == c } ?: "SPACE" }

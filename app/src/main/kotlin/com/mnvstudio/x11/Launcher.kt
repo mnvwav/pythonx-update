@@ -22,6 +22,7 @@ object Launcher {
         if (!XHolder.ensureStarted(context)) { log(XHolder.error ?: "The X server couldn't start"); return false }
         Linux.launch(context, app, XHolder.display, log)
         Prefs.of(context).addRecent(app.id)
+        updateShortcuts(context)
         return true
     }
 
@@ -38,6 +39,23 @@ object Launcher {
             .setIcon(Icon.createWithResource(context, R.mipmap.ic_launcher))
             .setIntent(intent).build()
         sm.requestPinShortcut(info, null)
+    }
+
+    /**
+     * Long-press the X11 icon on the home screen: the most recent Linux apps appear as shortcuts that open straight
+     * into their window, like real Android apps.
+     */
+    fun updateShortcuts(context: Context) = runCatching {
+        val sm = context.getSystemService(ShortcutManager::class.java) ?: return@runCatching
+        val prefs = Prefs.of(context)
+        val apps = prefs.recents.split(',').mapNotNull { com.mnvstudio.x11.linux.Catalog.byId(it) }.filter { Linux.isInstalled(context, it) }
+            .take(maxOf(1, sm.maxShortcutCountPerActivity - 1).coerceAtMost(4))
+        sm.dynamicShortcuts = apps.mapIndexed { i, app ->
+            ShortcutInfo.Builder(context, "recent-${app.id}").setShortLabel(app.name).setLongLabel("${app.name} (Linux)")
+                .setIcon(Icon.createWithResource(context, R.mipmap.ic_launcher)).setRank(i)
+                .setIntent(Intent(context, MainActivity::class.java).setAction(ACTION_LAUNCH).putExtra(EXTRA_APP, app.id)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)).build()
+        }
     }
 
     fun ignoringBatteryOptimizations(context: Context): Boolean =
