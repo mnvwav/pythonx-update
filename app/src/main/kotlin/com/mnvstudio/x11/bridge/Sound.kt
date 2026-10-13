@@ -20,6 +20,8 @@ import java.net.Socket
  */
 object Sound {
     const val PORT = 4714
+    const val MIC_PORT = 4715
+    @Volatile private var micOn = false
     const val SOCKET = "/tmp/x11-pulse.sock"
     val PACKAGES = listOf("pulseaudio", "pulseaudio-utils", "alsa-plugins-pulse")
 
@@ -69,6 +71,11 @@ object Sound {
             load-module module-null-sink sink_name=android sink_properties=device.description=Android rate=48000
             set-default-sink android
             load-module module-simple-protocol-tcp listen=127.0.0.1 port=$PORT source=android.monitor record=true playback=false rate=48000 format=s16le channels=2
+            # The phone's microphone: the app writes it into micfeed, Linux apps record from "mic".
+            load-module module-null-sink sink_name=micfeed sink_properties=device.description=MicFeed rate=48000 channels=1
+            load-module module-remap-source master=micfeed.monitor source_name=mic source_properties=device.description=Android_Microphone
+            set-default-source mic
+            load-module module-simple-protocol-tcp listen=127.0.0.1 port=$MIC_PORT sink=micfeed playback=true record=false rate=48000 format=s16le channels=1
         """.trimIndent() + "\n")
         File(root, "etc/asound.conf").writeText("pcm.!default { type pulse }\nctl.!default { type pulse }\n")
         File(root, "etc/pulse").mkdirs()
@@ -102,7 +109,35 @@ object Sound {
         } finally { track.stop(); track.release() }
     }
 
+    /** Streams the phone's microphone into Linux (needs RECORD_AUDIO; Android shows its mic indicator meanwhile). */
+    @android.annotation.SuppressLint("MissingPermission")
+    fun startMic(context: Context) {
+        if (micOn) return
+        if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        micOn = true
+        Thread {
+            val rate = 48000
+            val min = android.media.AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+            val rec = runCatching { android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, rate,
+                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min * 2, 8192)) }.getOrNull()
+            if (rec == null || rec.state != android.media.AudioRecord.STATE_INITIALIZED) { micOn = false; AppLog.e("Microphone unavailable"); return@Thread }
+            rec.startRecording()
+            val buf = ByteArray(3840)   // 40 ms
+            try {
+                while (micOn) {
+                    val s = runCatching { Socket().apply { connect(InetSocketAddress("127.0.0.1", MIC_PORT), 1000); tcpNoDelay = true } }.getOrNull()
+                    if (s == null) { Thread.sleep(500); continue }
+                    AppLog.i("Microphone connected to Linux")
+                    s.use { sock -> val o = sock.getOutputStream(); while (micOn) { val n = rec.read(buf, 0, buf.size); if (n > 0) o.write(buf, 0, n) } }
+                }
+            } catch (_: Exception) { } finally { rec.stop(); rec.release() }
+        }.start()
+    }
+
+    fun stopMic() { micOn = false }
+
     fun stop() {
+        stopMic()
         running = false
         daemon?.destroy(); daemon = null
         state = "off"

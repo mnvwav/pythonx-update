@@ -75,6 +75,8 @@ class Prefs private constructor(context: Context) {
     var engine by pref("engine", ENGINE_XORG)
     /** Sound from Linux apps through PulseAudio, like XSDL. */
     var sound by pref("sound", true)
+    /** The phone microphone as a Linux input (off by default; asks for the permission). */
+    var microphone by pref("microphone", false)
     var orientation by pref("orientation", "landscape")
     /** Float the display in picture-in-picture when leaving the app with Linux apps open. */
     var autoPip by pref("autoPip", true)

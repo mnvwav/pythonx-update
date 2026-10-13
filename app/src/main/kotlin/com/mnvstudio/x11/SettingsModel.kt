@@ -43,6 +43,8 @@ object SettingsModel {
             keywords = "xsdl xorg xvfb engine compatibility extensions"),
         SettingItem("sound", "Display", "Sound", "Linux apps play through the phone's speaker (PulseAudio, installed on first use)", Kind.TOGGLE,
             needsRestart = true, keywords = "audio pulseaudio alsa speaker music"),
+        SettingItem("microphone", "Display", "Microphone for Linux apps", "Calls and recorders in Linux hear the phone's mic (Android shows the mic indicator)",
+            Kind.TOGGLE, enabled = { p.sound }, needsRestart = true, keywords = "mic record audio input voice"),
         SettingItem("resolution", "Display", "Resolution", "Size of the Linux screen", Kind.CHOICE, needsRestart = true,
             options = Prefs.RESOLUTIONS.map { it to if (it == Prefs.RES_NATIVE) "Fit my screen" else it }, keywords = "size pixels"),
         SettingItem("scale", "Display", "Detail", "Lower makes apps bigger and faster", Kind.SLIDER, range = 0.25f..1f, steps = 2,

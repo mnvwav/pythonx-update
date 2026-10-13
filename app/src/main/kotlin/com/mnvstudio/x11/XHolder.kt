@@ -138,6 +138,7 @@ object XHolder {
         Linux.check(app)
         if (Linux.state != Linux.State.READY) return
         if (prefs.sound) com.mnvstudio.x11.bridge.Sound.start(app)
+        if (prefs.sound && prefs.microphone) com.mnvstudio.x11.bridge.Sound.startMic(app)
         // The profile's own startup script (Environment screen).
         if (java.io.File(Linux.rootfs(app), "etc/x11-startup.sh").exists()) Linux.run(app, "sh /etc/x11-startup.sh", prefs.display, jobName = "startup script")
         for (id in prefs.autostart) {
@@ -197,6 +198,7 @@ object XHolder {
     @Synchronized
     fun stop() {
         com.mnvstudio.x11.bridge.Sound.stop()
+        com.mnvstudio.x11.tools.RemoteDesktop.stop()
         if (server == null && XorgEngine.state != XorgEngine.State.STOPPED) {
             Linux.stopAll(); XorgEngine.stop(); clients = 0
             AppLog.i("X.Org stopped"); return

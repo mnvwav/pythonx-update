@@ -7,6 +7,7 @@ import android.net.TrafficStats
 import android.net.wifi.WifiManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import com.mnvstudio.x11.AppLog
 import com.mnvstudio.x11.Launcher
 import com.mnvstudio.x11.XHolder
 import com.mnvstudio.x11.linux.Linux
@@ -147,6 +148,10 @@ internal object NetToolDefs {
         ToolDef("sftp", "SFTP / SCP", REMOTE, Icons.Filled.DriveFileMove, "Transfer files to and from another computer securely",
             listOf(Field("target", "user@host", "user@192.168.1.20"), Field("port", "Port", "22")),
             keywords = "secure file transfer", run = sshLike("sftp") { v -> "sftp -P ${v["port"]} ${q(v["target"])}" }),
+        ToolDef("vnc", "Remote desktop (VNC)", REMOTE, Icons.Filled.ScreenShare,
+            "Control this phone's Linux desktop from a laptop or tablet with any VNC viewer (password protected)",
+            listOf(Field("act", "Action", "Start", choices = listOf("Start", "Stop"))), View.TABLE, keywords = "vnc rdp remote control screen share x11vnc",
+            run = native { ctx, v, out -> RemoteDesktop.run(ctx, v["act"] == "Start", out) }),
         ToolDef("remotex", "Remote X11 setup", REMOTE, Icons.Filled.Cast, "Show apps from another computer on this phone",
             run = native { ctx, _, out -> Net.remoteXGuide(ctx).forEach(out::line) }),
     )
@@ -377,4 +382,39 @@ object WebSocketTester {
     private fun readLine(i: java.io.InputStream): String {
         val sb = StringBuilder(); while (true) { val c = i.read(); if (c < 0 || c == '\n'.code) break; if (c != '\r'.code) sb.append(c.toChar()) }; return sb.toString()
     }
+}
+
+
+/** A VNC server on the X.Org display (x11vnc): random password per start, stops with the display. */
+object RemoteDesktop {
+    private var process: Process? = null
+    const val PORT = 5900
+
+    fun run(context: Context, start: Boolean, out: Out) {
+        if (!start) { process?.destroy(); process = null; out.row("Remote desktop", "stopped"); return }
+        if (!XHolder.usingXorg || com.mnvstudio.x11.xorg.XorgEngine.state != com.mnvstudio.x11.xorg.XorgEngine.State.RUNNING) {
+            out.row("Needs", "the X.Org engine running (Settings → Display → X server, then open the display)"); return
+        }
+        process?.destroy()
+        val pass = (1..8).map { "abcdefghjkmnpqrstuvwxyz23456789".random() }.joinToString("")
+        val d = XHolder.display
+        val latch = java.util.concurrent.CountDownLatch(1)
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            Linux.capture(context, "command -v x11vnc >/dev/null || apk add -q x11vnc >/dev/null 2>&1; x11vnc -storepasswd ${q(pass)} /tmp/.vncpass >/dev/null 2>&1; command -v x11vnc") { _, o ->
+                if (o.none { it.contains("x11vnc") }) { out.row("Error", "couldn't install x11vnc"); latch.countDown(); return@capture }
+                process = Linux.run(context, "exec x11vnc -display :$d -auth ${com.mnvstudio.x11.xorg.XorgEngine.AUTH_FILE} -rfbauth /tmp/.vncpass " +
+                    "-forever -shared -rfbport $PORT -quiet", d) { code -> AppLog.i("VNC server exited ($code)") }
+                latch.countDown()
+            }
+        }
+        latch.await(5, java.util.concurrent.TimeUnit.MINUTES)
+        if (process == null) return
+        val ip = Net.interfaces().firstOrNull { (n, a) -> !a.startsWith("127.") && '.' in a && (n.startsWith("wlan") || n.startsWith("eth") || n.startsWith("ap")) }?.second?.substringBefore('/')
+        out.row("Address", "${ip ?: "this phone's Wi-Fi IP"}:$PORT")
+        out.row("Password", pass)
+        out.row("Viewers", "RealVNC, TigerVNC, Remmina, or macOS Screen Sharing (vnc://…)")
+        out.row("Stops", "when you choose Stop or the display stops")
+    }
+
+    fun stop() { process?.destroy(); process = null }
 }

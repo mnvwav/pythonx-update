@@ -327,7 +327,14 @@ private fun SettingRow(prefs: Prefs, item: SettingItem, change: (() -> Unit) -> 
     val value = SettingsModel.value(prefs, item.key)
     val title = item.title + if (item.needsRestart) "  ↻" else ""
     when (item.kind) {
-        Kind.TOGGLE -> ToggleRow(title, item.summary.ifEmpty { null }, value.toBoolean(), enabled = item.enabled()) { v -> change { SettingsModel.set(prefs, item.key, v) } }
+        Kind.TOGGLE -> {
+            val activity = LocalContext.current as? android.app.Activity
+            ToggleRow(title, item.summary.ifEmpty { null }, value.toBoolean(), enabled = item.enabled()) { v ->
+                // Settings that need an Android permission ask for it as they're turned on.
+                if (v && item.key == "microphone") activity?.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 42)
+                change { SettingsModel.set(prefs, item.key, v) }
+            }
+        }
         Kind.CHOICE -> if (item.options.size > 4) Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(title, color = Ink, fontSize = 15.sp)
