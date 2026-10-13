@@ -79,7 +79,10 @@ private fun Running(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
 
     Column(Modifier.fillMaxSize().background(Color.Black).imePadding()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            AndroidView(factory = { ctx -> XorgView(ctx).also { view = it; it.onKeyboardRequest = { keyboard() } } }, Modifier.fillMaxSize(), update = { v ->
+            AndroidView(factory = { ctx -> XorgView(ctx).also { v ->
+                view = v; v.onKeyboardRequest = { keyboard() }
+                XorgEngine.client?.let { c -> c.onCursor = { px, w, h, hx, hy -> v.setCursor(px, w, h, hx, hy) }; c.requestCursor() }
+            } }, Modifier.fillMaxSize(), update = { v ->
                 v.directTouch = prefs.touchMode == Prefs.MODE_DIRECT
                 v.pointerSpeed = prefs.pointerSpeed
                 v.smooth = prefs.smoothScaling
@@ -111,6 +114,7 @@ private fun Running(prefs: Prefs, onBack: () -> Unit, onApps: () -> Unit) {
                         if (a == null || !Pip.enter(a)) Toast.makeText(context, "Picture-in-picture isn't available on this phone", Toast.LENGTH_SHORT).show()
                     }
                     item(Icons.Filled.Keyboard, if (prefs.extraKeys) "Hide extra keys" else "Show extra keys") { prefs.extraKeys = !prefs.extraKeys }
+                    item(Icons.Filled.ZoomOutMap, "Reset zoom") { view?.resetZoom() }
                     item(Icons.Filled.Apps, "Linux apps") { onApps() }
                     item(Icons.Filled.RestartAlt, "Restart X.Org") { XHolder.restart(context, "from the display menu") }
                     item(Icons.Filled.Stop, "Stop X.Org") { XService.stop(context); onBack() }

@@ -73,6 +73,8 @@ class Prefs private constructor(context: Context) {
     /** "auto", "landscape" or "portrait" while the display is open. */
     /** Which X server: the full X.Org one inside Linux (default) or the app's own lightweight server. */
     var engine by pref("engine", ENGINE_XORG)
+    /** Sound from Linux apps through PulseAudio, like XSDL. */
+    var sound by pref("sound", true)
     var orientation by pref("orientation", "landscape")
     /** Float the display in picture-in-picture when leaving the app with Linux apps open. */
     var autoPip by pref("autoPip", true)

@@ -43,6 +43,18 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
     private var lastFrame = 0L
     private var running = false
     private var px = 0f; private var py = 0f   // pointer position in X coordinates
+    /** Pinch zoom (1–4×) and the visible area's centre in X coordinates. */
+    private var zoom = 1f; private var cx = -1f; private var cy = -1f
+    @Volatile private var cursorBmp: Bitmap? = null
+    private var hotX = 0; private var hotY = 0
+
+    /** Shows the app's real cursor shape (I-beam, hand, resize…) as X.Org reports it. */
+    fun setCursor(argb: IntArray, w: Int, h: Int, hx: Int, hy: Int) {
+        val b = Bitmap.createBitmap(argb, w, h, Bitmap.Config.ARGB_8888)
+        post { cursorBmp = b; hotX = hx; hotY = hy; invalidate() }
+    }
+
+    fun resetZoom() { zoom = 1f; invalidate() }
 
     init { isFocusable = true; isFocusableInTouchMode = true; keepScreenOn = true }
 
@@ -72,19 +84,40 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(android.graphics.Color.BLACK)
         val b = bitmap ?: return
-        val s = minOf(width.toFloat() / b.width, height.toFloat() / b.height)
-        val w = b.width * s; val h = b.height * s
-        dst.set((width - w) / 2, (height - h) / 2, (width + w) / 2, (height + h) / 2)
+        layoutFor(b)
         paint.isFilterBitmap = smooth
         canvas.drawBitmap(b, null, dst, paint)
         if (!directTouch) {
-            // Our own pointer in trackpad mode (Xvfb draws no cursor into the framebuffer).
-            val cx = dst.left + px * s; val cy = dst.top + py * s
-            cursor.reset(); cursor.moveTo(cx, cy); cursor.lineTo(cx, cy + 22); cursor.lineTo(cx + 6, cy + 17); cursor.lineTo(cx + 10, cy + 26)
-            cursor.lineTo(cx + 13, cy + 24); cursor.lineTo(cx + 9, cy + 16); cursor.lineTo(cx + 16, cy + 16); cursor.close()
-            canvas.drawPath(cursor, cursorFill); canvas.drawPath(cursor, cursorEdge)
+            // Xvfb draws no cursor into its framebuffer, so draw it here: the app's real cursor when known.
+            val s = dst.width() / b.width
+            val x = dst.left + px * s; val y = dst.top + py * s
+            val cb = cursorBmp
+            if (cb != null) {
+                val cs = maxOf(1f, s * 0.9f).coerceAtMost(3f)
+                curRect.set(x - hotX * cs, y - hotY * cs, x + (cb.width - hotX) * cs, y + (cb.height - hotY) * cs)
+                canvas.drawBitmap(cb, null, curRect, null)
+            } else {
+                cursor.reset(); cursor.moveTo(x, y); cursor.lineTo(x, y + 22); cursor.lineTo(x + 6, y + 17); cursor.lineTo(x + 10, y + 26)
+                cursor.lineTo(x + 13, y + 24); cursor.lineTo(x + 9, y + 16); cursor.lineTo(x + 16, y + 16); cursor.close()
+                canvas.drawPath(cursor, cursorFill); canvas.drawPath(cursor, cursorEdge)
+            }
         }
     }
+    private val curRect = RectF()
+
+    /** Fit the screen, then apply zoom around (cx, cy), clamped so no black edges show while zoomed. */
+    private fun layoutFor(b: Bitmap) {
+        val fit = minOf(width.toFloat() / b.width, height.toFloat() / b.height)
+        val s = fit * zoom
+        val w = b.width * s; val h = b.height * s
+        if (zoom <= 1.001f || cx < 0) { cx = b.width / 2f; cy = b.height / 2f }
+        var left = width / 2f - cx * s; var top = height / 2f - cy * s
+        left = if (w <= width) (width - w) / 2 else left.coerceIn(width - w, 0f)
+        top = if (h <= height) (height - h) / 2 else top.coerceIn(height - h, 0f)
+        dst.set(left, top, left + w, top + h)
+        cx = (width / 2f - left) / s; cy = (height / 2f - top) / s
+    }
+
     private val cursor = android.graphics.Path()
     private val cursorFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
     private val cursorEdge = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.BLACK; style = Paint.Style.STROKE; strokeWidth = 2f }
@@ -100,10 +133,36 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
     private var downTime = 0L; private var downX = 0f; private var downY = 0f; private var lastX = 0f; private var lastY = 0f
     private var maxPointers = 0; private var moved = false; private var dragging = false; private var lastTapUp = 0L
     private var scrollAcc = 0f
+    private var startSpan = 0f; private var pinching = false; private var startZoom = 1f
+    private var midX = 0f; private var midY = 0f
+    private fun span(e: MotionEvent) = if (e.pointerCount < 2) 0f else hypot(e.getX(0) - e.getX(1), e.getY(0) - e.getY(1))
+
+    /** A real mouse (USB, Bluetooth, DeX): absolute position, its own buttons and wheel. */
+    override fun onGenericMotionEvent(e: MotionEvent): Boolean {
+        if (!e.isFromSource(android.view.InputDevice.SOURCE_MOUSE) && !e.isFromSource(android.view.InputDevice.SOURCE_TOUCHPAD)) return super.onGenericMotionEvent(e)
+        bitmap ?: return true
+        when (e.actionMasked) {
+            MotionEvent.ACTION_HOVER_MOVE -> mouseTo(e)
+            MotionEvent.ACTION_SCROLL -> {
+                val v = e.getAxisValue(MotionEvent.AXIS_VSCROLL); val h = e.getAxisValue(MotionEvent.AXIS_HSCROLL)
+                if (v != 0f) send { scroll(v > 0) }
+                if (h != 0f) send { scrollSideways(h < 0) }
+            }
+            MotionEvent.ACTION_BUTTON_PRESS, MotionEvent.ACTION_BUTTON_RELEASE -> {
+                val btn = when (e.actionButton) { MotionEvent.BUTTON_SECONDARY -> 3; MotionEvent.BUTTON_TERTIARY -> 2; MotionEvent.BUTTON_BACK -> 8; MotionEvent.BUTTON_FORWARD -> 9; else -> 1 }
+                mouseTo(e); val down = e.actionMasked == MotionEvent.ACTION_BUTTON_PRESS; send { button(btn, down) }
+            }
+        }
+        return true
+    }
+
+    private fun mouseTo(e: MotionEvent) { val (x, y) = toX(e.x, e.y); px = x.toFloat(); py = y.toFloat(); send { motion(x, y) }; invalidate() }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val b = bitmap ?: return true
+        // Mouse drags arrive as touch events; buttons come through onGenericMotionEvent.
+        if (e.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE) { if (e.actionMasked == MotionEvent.ACTION_MOVE) mouseTo(e); return true }
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 requestFocus()
@@ -113,21 +172,41 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 maxPointers = maxOf(maxPointers, e.pointerCount)
+                if (e.pointerCount == 2) { startSpan = span(e); startZoom = zoom; pinching = false; midX = (e.getX(0) + e.getX(1)) / 2; midY = (e.getY(0) + e.getY(1)) / 2 }
                 if (directTouch && e.pointerCount == 2) send { button(1, false) }   // two fingers: not a left drag after all
             }
             MotionEvent.ACTION_MOVE -> {
                 val dx = e.x - lastX; val dy = e.y - lastY
                 if (hypot(e.x - downX, e.y - downY) > 12) moved = true
-                if (e.pointerCount >= 2) {
-                    scrollAcc += dy
-                    val step = 40f
-                    while (abs(scrollAcc) >= step) { val up = scrollAcc > 0; send { scroll(up) }; scrollAcc -= if (up) step else -step }
+                if (e.pointerCount == 2 && startSpan > 0) {
+                    // Two fingers: spreading apart or together zooms (and the zoomed view follows the fingers);
+                    // moving together without changing the gap scrolls.
+                    val sp = span(e)
+                    if (!pinching && abs(sp - startSpan) > startSpan * 0.18f) pinching = true
+                    val mx = (e.getX(0) + e.getX(1)) / 2; val my = (e.getY(0) + e.getY(1)) / 2
+                    if (pinching) {
+                        zoom = (startZoom * sp / startSpan).coerceIn(1f, 4f)
+                        val s = dst.width() / b.width
+                        cx -= (mx - midX) / s; cy -= (my - midY) / s
+                        moved = true; invalidate()
+                    } else {
+                        scrollAcc += dy
+                        val step = 40f
+                        while (abs(scrollAcc) >= step) { val up = scrollAcc > 0; send { scroll(up) }; scrollAcc -= if (up) step else -step }
+                    }
+                    midX = mx; midY = my
+                } else if (e.pointerCount > 2) {
+                    // three fingers: no pointer movement (taps only)
                 } else if (directTouch) {
                     val (x, y) = toX(e.x, e.y); px = x.toFloat(); py = y.toFloat(); send { motion(x, y) }
                 } else {
                     val s = b.width / dst.width() * pointerSpeed
-                    px = (px + dx * s).coerceIn(0f, b.width - 1f); py = (py + dy * s).coerceIn(0f, b.height - 1f)
+                    px = (px + dx * s / zoom).coerceIn(0f, b.width - 1f); py = (py + dy * s / zoom).coerceIn(0f, b.height - 1f)
                     val x = px.toInt(); val y = py.toInt(); send { motion(x, y) }
+                    // Zoomed in: keep the pointer on screen.
+                    if (zoom > 1f) { val vs = dst.width() / b.width; val hw = width / 2f / vs; val hh = height / 2f / vs
+                        if (px < cx - hw * 0.8f) cx = px + hw * 0.8f; if (px > cx + hw * 0.8f) cx = px - hw * 0.8f
+                        if (py < cy - hh * 0.8f) cy = py + hh * 0.8f; if (py > cy + hh * 0.8f) cy = py - hh * 0.8f }
                     invalidate()
                 }
                 lastX = e.x; lastY = e.y
@@ -138,10 +217,11 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
                     directTouch && maxPointers == 1 -> send { button(1, false) }
                     dragging -> { dragging = false; send { button(1, false) } }
                     quick && maxPointers == 1 -> { send { click(1) }; lastTapUp = e.eventTime }
-                    quick && maxPointers == 2 -> send { click(3) }
+                    quick && maxPointers == 2 && !pinching -> send { click(3) }
                     quick && maxPointers >= 3 -> send { click(2) }
                 }
-                if (directTouch && quick && maxPointers == 2) send { click(3) }
+                if (directTouch && quick && maxPointers == 2 && !pinching) send { click(3) }
+                pinching = false; startSpan = 0f
                 if (quick && maxPointers >= 4) onKeyboardRequest()
             }
         }

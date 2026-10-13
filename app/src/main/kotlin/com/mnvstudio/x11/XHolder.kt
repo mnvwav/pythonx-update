@@ -61,8 +61,13 @@ object XHolder {
             // The full X.Org server inside Linux (like XSDL): every extension, every app.
             val (w, h) = prefs.screenSize()
             display = prefs.display; error = null; clients = 0
-            XorgEngine.start(app, w, h, prefs.dpi(), prefs.display, onReady = {
+            XorgEngine.start(app, w, h, prefs.dpi(), prefs.display, prefs.lanAccess, onReady = {
                 idleSince = SystemClock.elapsedRealtime()
+                if (prefs.clipboardSync) {
+                    val cm = app.getSystemService(ClipboardManager::class.java)
+                    XorgEngine.client?.onClipboard = { text -> main.post { lastFromX = text; runCatching { cm.setPrimaryClip(ClipData.newPlainText("X11", text)) } } }
+                    pushClipboard(app)
+                }
                 afterStart(app, prefs)
                 pollXorgClients()
             }, onFail = { msg -> error = msg })
@@ -132,6 +137,7 @@ object XHolder {
     private fun afterStart(app: Context, prefs: Prefs) {
         Linux.check(app)
         if (Linux.state != Linux.State.READY) return
+        if (prefs.sound) com.mnvstudio.x11.bridge.Sound.start(app)
         // The profile's own startup script (Environment screen).
         if (java.io.File(Linux.rootfs(app), "etc/x11-startup.sh").exists()) Linux.run(app, "sh /etc/x11-startup.sh", prefs.display, jobName = "startup script")
         for (id in prefs.autostart) {
@@ -190,6 +196,7 @@ object XHolder {
 
     @Synchronized
     fun stop() {
+        com.mnvstudio.x11.bridge.Sound.stop()
         if (server == null && XorgEngine.state != XorgEngine.State.STOPPED) {
             Linux.stopAll(); XorgEngine.stop(); clients = 0
             AppLog.i("X.Org stopped"); return
@@ -204,10 +211,12 @@ object XHolder {
 
     /** Offers Android's clipboard to Linux apps (Android only allows reading it while the app is in the foreground). */
     fun pushClipboard(context: Context) {
-        val s = server ?: return
         val cm = context.getSystemService(ClipboardManager::class.java)
         val text = runCatching { cm.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull() ?: return
-        if (text.isNotEmpty() && text != lastFromX) s.setClipboard(text)
+        if (text.isEmpty() || text == lastFromX) return
+        val s = server
+        if (s != null) s.setClipboard(text)
+        else XorgEngine.client?.let { c -> Thread { runCatching { c.setClipboard(text) } }.start() }
     }
 
     private fun listenAbstract(s: XServer, d: Int) {

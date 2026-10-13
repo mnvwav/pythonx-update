@@ -199,8 +199,15 @@ object Linux {
             put("TERM", "xterm-256color")
             put("LANG", "C.UTF-8")
             put("TMPDIR", "/tmp")
-            // Loopback TCP is the most reliable route from inside proot (the abstract socket needs libxcb support).
-            put("DISPLAY", "127.0.0.1:$display")
+            if (Prefs.of(app).engine == Prefs.ENGINE_XORG) {
+                // X.Org: its Unix socket plus this run's secret cookie.
+                put("DISPLAY", ":$display"); put("XAUTHORITY", com.mnvstudio.x11.xorg.XorgEngine.AUTH_FILE)
+            } else {
+                // Built-in server: loopback TCP is the most reliable route from inside proot.
+                put("DISPLAY", "127.0.0.1:$display")
+            }
+            // Sound goes to Android through PulseAudio (see bridge/Sound.kt).
+            putAll(com.mnvstudio.x11.bridge.Sound.env(app))
             // Profile-wide variables (Environment screen), then the caller's (session or app).
             putAll(userEnv(app))
             putAll(env)
@@ -366,11 +373,14 @@ object Linux {
         fun display() {
             if (!com.mnvstudio.x11.XHolder.ensureStarted(app)) { set(5, false, com.mnvstudio.x11.XHolder.error ?: "The X server didn't start"); finish(); return }
             val d = com.mnvstudio.x11.XHolder.display
-            capture(app, "nc -z -w 3 127.0.0.1 ${6000 + d} && echo reachable") { _, out ->
-                if (out.none { it.trim() == "reachable" }) { set(5, false, "Port ${6000 + d} not reachable: " + out.joinToString(" · ")); finish(); return@capture }
-                set(5, true, "DISPLAY=127.0.0.1:$d")
+            val xorg = Prefs.of(app).engine == Prefs.ENGINE_XORG
+            // X.Org listens on its Unix socket (TCP stays closed unless network access is on); the built-in server on TCP.
+            val probe = if (xorg) "i=0; while [ ! -S /tmp/.X11-unix/X$d ] && [ \$i -lt 100 ]; do sleep 0.2; i=\$((i+1)); done; test -S /tmp/.X11-unix/X$d && echo reachable" else "nc -z -w 3 127.0.0.1 ${6000 + d} && echo reachable"
+            capture(app, probe) { _, out ->
+                if (out.none { it.trim() == "reachable" }) { set(5, false, if (xorg) "X.Org socket /tmp/.X11-unix/X$d missing (is X.Org still starting?)" else "Port ${6000 + d} not reachable: " + out.joinToString(" · ")); finish(); return@capture }
+                set(5, true, if (xorg) "X.Org on :$d (Unix socket, cookie auth)" else "DISPLAY=127.0.0.1:$d")
                 capture(app, "command -v xterm >/dev/null || { echo 'xterm not installed: install Terminal first'; exit 2; }; " +
-                    "DISPLAY=127.0.0.1:$d timeout 5 xterm -fn 9x15 -e 'sleep 30' 2>&1; echo \"exit \$?\"") { _, o ->
+                    "timeout 5 xterm -e 'sleep 30' 2>&1; echo \"exit \$?\"") { _, o ->
                     val code = o.lastOrNull { it.startsWith("exit ") }?.removePrefix("exit ")?.trim()?.toIntOrNull() ?: -1
                     // timeout kills a running xterm (busybox reports 15 or 143, coreutils 124): that means the window stayed open.
                     if (code == 15 || code == 124 || code == 143) set(6, true, "xterm ran for 5 s on :$d")
