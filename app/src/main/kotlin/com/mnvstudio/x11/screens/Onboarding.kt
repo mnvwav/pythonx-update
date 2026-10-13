@@ -197,13 +197,12 @@ private fun LinuxSetup() {
                 Text("Alpine Linux", color = Ink, fontWeight = FontWeight.SemiBold)
                 Text("Runs without root, stays inside the app.", color = Label, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 14.dp))
                 if (Linux.state == Linux.State.FAILED) Text(Linux.status, color = Bad, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
-                if (!Linux.prootAvailable(context)) Text("This build doesn't include Linux support (proot). You can still use X11 with Termux.",
+                if (!Linux.prootAvailable(context)) Text("This build doesn't include Linux support (proot). Rebuild the app to include it.",
                     color = Bad, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
                 PrimaryButton("Download Linux", Modifier.fillMaxWidth(), enabled = Linux.prootAvailable(context)) { Linux.install(context) }
             }
         }
     }
-    Text("Prefer Termux? Skip this; the guide shows how to connect Termux apps.", color = Faint, fontSize = 13.sp, modifier = Modifier.padding(top = 14.dp))
 }
 
 @Composable

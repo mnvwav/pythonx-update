@@ -19,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnvstudio.x11.Prefs
-import com.mnvstudio.x11.TermuxCommand
 import com.mnvstudio.x11.ui.CommandBlock
 import com.mnvstudio.x11.ui.Ink
 import com.mnvstudio.x11.ui.Label
@@ -63,15 +62,6 @@ fun GuideScreen(prefs: Prefs, onBack: () -> Unit) {
                 SectionTitle("Files")
                 SurfaceCard {
                     Text("Share any file to X11 from another app (Share → X11). It's copied to /root/Shared in Linux.", color = Label, fontSize = 14.sp, lineHeight = 20.sp)
-                }
-
-                SectionTitle("From Termux")
-                SurfaceCard {
-                    CommandBlock(TermuxCommand.install, caption = "Install the mnvx11 command once")
-                    Spacer(Modifier.height(14.dp))
-                    CommandBlock("mnvx11 :$d xterm", caption = "Start the display and run an app")
-                    Spacer(Modifier.height(14.dp))
-                    CommandBlock("export DISPLAY=:$d", caption = "Or just point apps at the display")
                 }
 
                 SectionTitle("From another computer")

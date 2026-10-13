@@ -91,7 +91,7 @@ import com.mnvstudio.x11.ui.AppTheme
 import com.mnvstudio.x11.ui.Haptics
 
 class MainActivity : ComponentActivity() {
-    /** Screen to open from a notification, shortcut or Termux. */
+    /** Screen to open from a notification or shortcut. */
     private var pendingRoute by mutableStateOf<String?>(null)
     private lateinit var prefs: Prefs
 
@@ -104,13 +104,6 @@ class MainActivity : ComponentActivity() {
         intent ?: return
         intent.getStringExtra(EXTRA_ROUTE)?.let { pendingRoute = it }
         when (intent.action) {
-            // `mnvx11` from Termux: start on the requested display, then show it or step aside.
-            TermuxCommand.ACTION_START -> {
-                val d = intent.getIntExtra(TermuxCommand.EXTRA_DISPLAY, prefs.display).coerceIn(0, 9)
-                if (XHolder.server == null) prefs.display = d
-                XHolder.ensureStarted(this)
-                if (intent.getBooleanExtra(TermuxCommand.EXTRA_OPEN, false)) pendingRoute = "display" else moveTaskToBack(true)
-            }
             // Home-screen shortcut for a Linux app.
             Launcher.ACTION_LAUNCH -> {
                 Linux.check(this)
