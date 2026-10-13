@@ -172,11 +172,16 @@ object Linux {
         val tmp = File(app.cacheDir, "proot").apply { mkdirs() }
         // Run as the chosen normal user (Users screen) unless this is a system task.
         val user = Prefs.of(app).linuxUser
-        val asUser = user.isNotEmpty() && user != "root" && !command.startsWith("apk ")
+        // Anything that touches the package manager runs as root (a normal user can't open apk's database).
+        val usesApk = APK_WORD.containsMatchIn(command)
+        val asUser = user.isNotEmpty() && user != "root" && !usesApk
         // With the X.Org engine an app may start while Xvfb is still booting: wait (up to 20 s) for its socket.
         val waited = if (jobName != null && Prefs.of(app).engine == Prefs.ENGINE_XORG)
             "i=0; while [ ! -e /tmp/.X11-unix/X$display ] && [ \$i -lt 100 ]; do sleep 0.2; i=\$((i+1)); done; $command" else command
-        val shellCommand = if (asUser) "su $user -c ${quote(waited)}" else waited
+        // Only one apk at a time: background installs (X.Org, sound, tools) and yours would otherwise collide with
+        // "Unable to lock database / Failed to open apk database". flock makes later ones wait their turn.
+        val serialized = if (usesApk) "exec 9>/tmp/.x11-apk.lock; flock 9; $waited" else waited
+        val shellCommand = if (asUser) "su $user -c ${quote(serialized)}" else serialized
         val args = listOf(
             "$lib/libproot.so", "--kill-on-exit", "-0", "--link2symlink",
             "-r", root.path,
@@ -235,6 +240,8 @@ object Linux {
         }.start()
         return p
     }
+
+    private val APK_WORD = Regex("(^|[^A-Za-z0-9_-])apk\\s")
 
     /** Single-quotes a string for /bin/sh. */
     fun quote(s: String) = "'" + s.replace("'", "'\\''") + "'"
