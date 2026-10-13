@@ -15,6 +15,8 @@ class X11App : Application() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, e ->
             AppLog.e("Crash in ${thread.name}\n" + e.stackTraceToString().lines().take(25).joinToString("\n"))
+            // Kept for the next launch, which offers to copy or share it.
+            runCatching { CrashReport.save(this, thread, e) }
             previous?.uncaughtException(thread, e)
         }
     }

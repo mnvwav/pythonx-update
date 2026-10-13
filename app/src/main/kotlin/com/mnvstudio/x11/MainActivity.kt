@@ -193,7 +193,7 @@ class MainActivity : ComponentActivity() {
                     var splash by rememberSaveable { mutableStateOf(savedInstanceState == null && prefs.showSplash) }
                     Box(Modifier.fillMaxSize()) {
                         AppContent()
-                        if (splash) SplashScreen { splash = false }
+                        if (splash) SplashScreen { splash = false } else CrashDialog()
                     }
                 }
             }

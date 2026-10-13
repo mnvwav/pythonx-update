@@ -68,14 +68,23 @@ class XorgView(context: Context) : View(context), Choreographer.FrameCallback {
         if (nanos - lastFrame >= 1_000_000_000L / maxFps.coerceIn(10, 120) - 2_000_000) {
             lastFrame = nanos
             val f = XorgEngine.frame
+            val c = XorgEngine.client
             if (f != null) {
+                var fresh = false
                 if (bitmap?.width != f.width || bitmap?.height != f.height) {
                     bitmap = Bitmap.createBitmap(f.width, f.height, Bitmap.Config.ARGB_8888); pixels = IntArray(f.width * f.height)
-                    px = f.width / 2f; py = f.height / 2f
+                    px = f.width / 2f; py = f.height / 2f; fresh = true
                 }
-                f.copyTo(pixels)
-                bitmap!!.setPixels(pixels, 0, f.width, 0, 0, f.width, f.height)
-                invalidate()
+                if (fresh || c == null || !c.tracksDamage) {
+                    f.copyTo(pixels)
+                    bitmap!!.setPixels(pixels, 0, f.width, 0, 0, f.width, f.height)
+                    invalidate()
+                } else c.takeDirty()?.let { (x, y, w, h) ->
+                    // Only what changed (DAMAGE): nothing at all while the screen is still.
+                    f.copyRect(pixels, x, y, w, h)
+                    bitmap!!.setPixels(pixels, y * f.width + x, f.width, x, y, w, h)
+                    invalidate()
+                }
             }
         }
         Choreographer.getInstance().postFrameCallback(this)

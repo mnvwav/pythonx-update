@@ -40,6 +40,17 @@ class XwdFrame private constructor(private val map: MappedByteBuffer, val width:
         }
     }
 
+    /** Copies just the rectangle (x, y, w, h) into [dst] (a width × height ARGB array). */
+    fun copyRect(dst: IntArray, x: Int, y: Int, w: Int, h: Int) {
+        val rowInts = stride / 4
+        for (row in y until y + h) {
+            pixels.position(row * rowInts + x)
+            pixels.get(dst, row * width + x, w)
+            val o = row * width + x
+            for (i in o until o + w) dst[i] = dst[i] or -0x1000000
+        }
+    }
+
     /** Copies the whole screen into [dst] (width × height, ARGB with full alpha). */
     fun copyTo(dst: IntArray) {
         val rowInts = stride / 4

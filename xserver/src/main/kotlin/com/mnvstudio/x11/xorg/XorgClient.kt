@@ -37,6 +37,13 @@ class XorgClient private constructor(inp: InputStream, out: OutputStream, privat
     private val pending = ConcurrentHashMap<Int, (ByteBuffer?) -> Unit>()
     private val atoms = HashMap<String, Int>()
     private var window = 0
+    private var damageExt = 0
+    private var damageEvent = 0
+    private var damage = 0
+    /** Region changed since [takeDirty] was last called: x0, y0, x1, y1 (empty when x0 >= x1). */
+    private val dirty = intArrayOf(0, 0, 0, 0)
+    /** True when the server reports changes (DAMAGE); without it the screen must be copied every frame. */
+    val tracksDamage get() = damage != 0
     @Volatile private var closed = false
 
     /** Text copied by a Linux app (called on the reader thread). */
@@ -119,6 +126,14 @@ class XorgClient private constructor(inp: InputStream, out: OutputStream, privat
             val s = le(16); s.put(xfixes.toByte()); s.put(2); s.putShort(4); s.putInt(window); s.putInt(atoms.getValue("CLIPBOARD")); s.putInt(1); send(s)
             val c = le(12); c.put(xfixes.toByte()); c.put(3); c.putShort(3); c.putInt(root); c.putInt(1); send(c)
         }
+        queryExtension("DAMAGE").let { (major, ev) -> damageExt = major; damageEvent = ev }
+        if (damageExt != 0) {
+            val v = le(12); v.put(damageExt.toByte()); v.put(0); v.putShort(3); v.putInt(1); v.putInt(1); send(v); out.flush(); reply()
+            damage = idBase or 2
+            // BoundingBox level: one event per growth of the changed area; DamageSubtract resets it after each frame.
+            val c = le(16); c.put(damageExt.toByte()); c.put(1); c.putShort(4); c.putInt(damage); c.putInt(root); c.put(2); c.put(0); c.putShort(0); send(c)
+            markDirty(0, 0, width, height)
+        }
         out.flush()
         Thread({ readLoop() }, "xorg-client").apply { isDaemon = true }.start()
         if (xfixes != 0) requestCursor()
@@ -188,7 +203,10 @@ class XorgClient private constructor(inp: InputStream, out: OutputStream, privat
                     SELECTION_REQUEST -> answerSelection(h)
                     SELECTION_NOTIFY -> {}
                     SELECTION_CLEAR -> ownText = null
-                    else -> if (xfixes != 0 && type == xfixesEvent) {
+                    else -> if (damage != 0 && type == damageEvent) {
+                        markDirty(h.getShort(16).toInt(), h.getShort(18).toInt(),
+                            h.getShort(16) + (h.getShort(20).toInt() and 0xFFFF), h.getShort(18) + (h.getShort(22).toInt() and 0xFFFF))
+                    } else if (xfixes != 0 && type == xfixesEvent) {
                         // XFixesSelectionNotify: someone took the clipboard. Ask for its text unless it's us.
                         val owner = h.getInt(8)
                         if (owner != window && owner != 0) fetchClipboard()
@@ -196,6 +214,32 @@ class XorgClient private constructor(inp: InputStream, out: OutputStream, privat
                 }
             }
         } catch (_: Exception) { }
+    }
+
+    // ---------------------------------------------------------------- damage
+
+    private fun markDirty(x0: Int, y0: Int, x1: Int, y1: Int) = synchronized(dirty) {
+        if (dirty[0] >= dirty[2]) { dirty[0] = x0; dirty[1] = y0; dirty[2] = x1; dirty[3] = y1 }
+        else { dirty[0] = minOf(dirty[0], x0); dirty[1] = minOf(dirty[1], y0); dirty[2] = maxOf(dirty[2], x1); dirty[3] = maxOf(dirty[3], y1) }
+    }
+
+    /**
+     * Returns the changed rectangle (x, y, w, h) clipped to the screen and clears it, or null if nothing changed.
+     * Also tells the server to start a new damage region (DamageSubtract).
+     */
+    fun takeDirty(): IntArray? {
+        val r = synchronized(dirty) {
+            if (dirty[0] >= dirty[2] || dirty[1] >= dirty[3]) return null
+            val x0 = dirty[0].coerceIn(0, width); val y0 = dirty[1].coerceIn(0, height)
+            val x1 = dirty[2].coerceIn(0, width); val y1 = dirty[3].coerceIn(0, height)
+            dirty[0] = 0; dirty[1] = 0; dirty[2] = 0; dirty[3] = 0
+            if (x0 >= x1 || y0 >= y1) return null
+            intArrayOf(x0, y0, x1 - x0, y1 - y0)
+        }
+        synchronized(this) {
+            val b = le(16); b.put(damageExt.toByte()); b.put(3); b.putShort(4); b.putInt(damage); b.putInt(0); b.putInt(0); send(b); out.flush()
+        }
+        return r
     }
 
     // ---------------------------------------------------------------- clipboard
