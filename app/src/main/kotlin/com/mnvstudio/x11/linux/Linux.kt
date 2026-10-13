@@ -180,7 +180,9 @@ object Linux {
             "i=0; while [ ! -e /tmp/.X11-unix/X$display ] && [ \$i -lt 100 ]; do sleep 0.2; i=\$((i+1)); done; $command" else command
         // Only one apk at a time: background installs (X.Org, sound, tools) and yours would otherwise collide with
         // "Unable to lock database / Failed to open apk database". flock makes later ones wait their turn.
-        val serialized = if (usesApk) "exec 9>/tmp/.x11-apk.lock; flock 9; $waited" else waited
+        // The lock lives only in this shell: the command runs with it closed (9>&-), so nothing it starts in the
+        // background can keep holding it; and waiting is capped so an install can never hang forever.
+        val serialized = if (usesApk) "exec 9>/tmp/.x11-apk.lock; flock -w 600 9 || echo 'Another install took too long; trying anyway.'; ( $waited ) 9>&-" else waited
         val shellCommand = if (asUser) "su $user -c ${quote(serialized)}" else serialized
         val args = listOf(
             "$lib/libproot.so", "--kill-on-exit", "-0", "--link2symlink",
