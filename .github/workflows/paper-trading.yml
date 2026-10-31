@@ -1,0 +1,41 @@
+# Runs the combo trend strategy's paper trading every day in GitHub's cloud and saves the results in the repo.
+# GitHub only runs scheduled workflows from the repository's DEFAULT branch, so this file must be on it.
+name: Paper trading
+
+on:
+  schedule:
+    - cron: "15 1 * * *"     # 01:15 UTC = 6:45 am India, after the 00:00 UTC daily close
+  workflow_dispatch: {}       # "Run workflow" button for a manual run
+
+permissions:
+  contents: write             # to commit paper_log.csv and paper_daily.txt
+
+concurrency:
+  group: paper-trading
+  cancel-in-progress: false
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orderflow-edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Today's signals (paper)
+        run: |
+          {
+            echo "===== $(date -u '+%Y-%m-%d %H:%M UTC') ====="
+            python signals.py 8000 --paper --min-change 0.05
+          } 2>&1 | tee -a paper_daily.txt
+      - name: Save results
+        run: |
+          git config user.name "paper-trading-bot"
+          git config user.email "paper-trading-bot@users.noreply.github.com"
+          git add paper_log.csv paper_daily.txt
+          git diff --cached --quiet || git commit -m "Paper trading $(date -u +%Y-%m-%d)"
+          git push
