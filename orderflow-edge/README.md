@@ -23,6 +23,14 @@ execute on Binance's book, and CoinDCX's API only returns the last few hundred t
 | cvd_divergence | price makes a 60-min low but cumulative delta doesn't: the drop has no real selling behind it |
 | whale_flow | the largest 1% of trades net-buying over 15 min (z-score > k) |
 
+## Momentum style (opening-range breakout + VWAP pullback)
+`python run.py BTCUSDT ETHUSDT --style momentum`
+
+The day-trading approach Umar Ashraf teaches publicly (opening range, VWAP, 9/20 EMA, relative volume, stop under
+structure, ~2R), adapted to 24/7 crypto: the "open" is 13:30 UTC (US stock open) or 00:00 UTC, whichever the
+in-sample period prefers. 5-minute bars, long only, one ORB trade per session, flat 6 hours after the open.
+An interpretation of public concepts, not anyone's exact rules.
+
 ## Honesty rules
 - Signals use only past data; entries fill at the next bar's open; stop beats target when both hit in a bar.
 - Fee + slippage on both sides of every trade.
