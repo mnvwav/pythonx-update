@@ -63,7 +63,7 @@ def main() -> None:
             log = pd.concat([log, pd.DataFrame([row])], ignore_index=True)
             log.to_csv(LOG, index=False)
         # Paper equity: each logged day's weights earn the next day's open-to-open move, minus 0.15% on changes.
-        eq, prev_w = 1.0, None
+        eq, prev_w, curve = 1.0, None, []
         for _, rw in log.iterrows():
             d = pd.Timestamp(rw["date"], tz="UTC")
             wv = pd.Series({s: rw.get(s, 0) for s in a.coins}).fillna(0)
@@ -74,6 +74,11 @@ def main() -> None:
             turn = float((wv - (prev_w if prev_w is not None else 0)).abs().sum())
             eq *= 1 + day_ret - 0.0015 * turn
             prev_w = wv
+            curve.append(eq)
+        day_pl = (curve[-1] - (curve[-2] if len(curve) > 1 else 1.0)) * a.capital if curve else 0.0
+        total_pl = (eq - 1) * a.capital
+        print(f"P&L today: {day_pl:+,.0f} INR · total: {total_pl:+,.0f} INR ({(eq - 1) * 100:+.2f}%) · "
+              f"value {a.capital * eq:,.0f}")
         print(f"Paper trading: {len(log)} days logged since {log['date'].iloc[0]}, "
               f"value {a.capital * eq:,.0f} ({(eq - 1) * 100:+.2f}%)")
 

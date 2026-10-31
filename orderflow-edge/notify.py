@@ -22,10 +22,11 @@ def latest_block(path: Path) -> str:
 
 
 def summary(block: str) -> tuple[str, str]:
-    actions = [l for l in block.splitlines() if " BUY " in l or " SELL " in l]
-    paper = next((l for l in block.splitlines() if l.startswith("Paper trading")), "")
-    subject = f"Paper trading: {len(actions)} change(s)" if actions else "Paper trading: no changes today"
-    short = "\n".join(["X11 paper trading", *(actions or ["No buys or sells today."]), paper]).strip()
+    actions = [" ".join(l.split()) for l in block.splitlines() if " BUY " in l or " SELL " in l]
+    pl = next((l for l in block.splitlines() if l.startswith("P&L")), "P&L: not available yet")
+    days = next((l for l in block.splitlines() if l.startswith("Paper trading")), "")
+    subject = pl.replace("P&L today:", "Paper P&L today:")
+    short = "\n".join(["📊 Paper trading (8k)", pl, "", "Trades today:", *(actions or ["none"]), "", days]).strip()
     return subject, short
 
 
