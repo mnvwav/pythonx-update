@@ -34,6 +34,27 @@ except ImportError:
     SSL = ssl.create_default_context()
 
 URL = "https://data.binance.vision/data/spot/monthly/klines/{s}/1d/{s}-1d-{y}-{m:02d}.zip"
+# Monthly files appear only after a month ends; the days since then come from the daily files.
+DAY_URL = "https://data.binance.vision/data/spot/daily/klines/{s}/1d/{s}-1d-{d}.zip"
+
+
+def _get_zip_csv(url: str) -> pd.DataFrame | None:
+    for attempt in range(4):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "orderflow-edge/1.0"})
+            with urllib.request.urlopen(req, timeout=60, context=SSL) as r:
+                raw = r.read()
+            with zipfile.ZipFile(io.BytesIO(raw)) as z, z.open(z.namelist()[0]) as f:
+                return pd.read_csv(f, header=None, usecols=range(6))
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            time.sleep(2 ** attempt)
+        except Exception as e:
+            if attempt == 3:
+                print(f"   skipped {url.rsplit('/', 1)[-1]}: {e}")
+            time.sleep(2 ** attempt)
+    return None
 
 
 def fetch_daily(symbol: str, years: int, root: Path = Path("data")) -> pd.DataFrame:
@@ -63,6 +84,15 @@ def fetch_daily(symbol: str, years: int, root: Path = Path("data")) -> pd.DataFr
         m += 1
         if m > 12:
             y, m = y + 1, 1
+    # Fill in from the first day after the last complete month, up to yesterday (today's candle isn't closed).
+    have = pd.to_numeric(pd.concat(frames)[0], errors="coerce").max() if frames else 0
+    last_day = pd.to_datetime(have / (1000 if have > 1e14 else 1), unit="ms").date() if have else today - dt.timedelta(days=62)
+    day = last_day + dt.timedelta(days=1)
+    while day < today:
+        f = _get_zip_csv(DAY_URL.format(s=symbol, d=day.isoformat()))
+        if f is not None:
+            frames.append(f)
+        day += dt.timedelta(days=1)
     if not frames:
         raise SystemExit(f"no daily data for {symbol}")
     d = pd.concat(frames, ignore_index=True)

@@ -32,6 +32,10 @@ def main() -> None:
     close = panel(data, "close")
     w = weights(close, "combo", "BTCUSDT")
     day = close.index[-1]
+    age = (pd.Timestamp.now(tz="UTC").normalize() - day).days
+    if age > 2:
+        raise SystemExit(f"Latest daily candle is {day:%Y-%m-%d}, {age} days old: the data source is behind. "
+                         "Not logging stale signals; try again later.")
     today, prev = w.iloc[-1], w.iloc[-2]
     btc_up = close["BTCUSDT"].iloc[-1] > close["BTCUSDT"].rolling(100).mean().iloc[-1]
 
