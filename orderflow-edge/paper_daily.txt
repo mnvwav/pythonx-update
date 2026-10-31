@@ -1,0 +1,29 @@
+===== 2026-10-31 18:00 UTC =====
+BTCUSDT: 730 days, 2024-10-01 → 2026-09-30
+ETHUSDT: 730 days, 2024-10-01 → 2026-09-30
+SOLUSDT: 730 days, 2024-10-01 → 2026-09-30
+BNBUSDT: 730 days, 2024-10-01 → 2026-09-30
+XRPUSDT: 730 days, 2024-10-01 → 2026-09-30
+DOGEUSDT: 730 days, 2024-10-01 → 2026-09-30
+ADAUSDT: 730 days, 2024-10-01 → 2026-09-30
+LINKUSDT: 730 days, 2024-10-01 → 2026-09-30
+LTCUSDT: 730 days, 2024-10-01 → 2026-09-30
+TRXUSDT: 730 days, 2024-10-01 → 2026-09-30
+
+Combo strategy · signals from the 2026-09-30 daily close · capital 8,000
+BTC trend filter: ON — altcoins allowed
+
+coin        target      amount   action
+BTC          13.6%       1,088   —
+ETH           9.7%         777   —
+SOL           9.2%         739   —
+BNB          14.5%       1,157   —
+XRP           7.2%         576   —
+DOGE          7.7%         617   —
+ADA           7.3%         580   —
+LINK          7.5%         600   —
+LTC           8.9%         710   —
+TRX          14.5%       1,157   BUY 557
+CASH          0.0%           0
+
+Paper trading: 1 days logged since 2026-09-30, value 8,000 (+0.00%)
