@@ -38,3 +38,15 @@ An interpretation of public concepts, not anyone's exact rules.
 - Sanity-checked on synthetic random-walk data: every strategy correctly shows no edge.
 
 Not financial advice. India: 1% TDS on sells, 30% tax on gains with no loss offset.
+
+## The strategy that passed: "combo" daily trend portfolio
+Out-of-sample on 10 coins (2022-04 → 2026-09): +205%, max drawdown −27%, sharpe 1.02, vs buy & hold +82%, −63%, 0.53;
+last two years +102%, −23%, 1.32. Daily, long only, ~38% invested on average.
+
+Each day after 00:00 UTC (5:30 am India):
+```
+python signals.py 100000 --paper     # your capital; prints what to hold and what to buy/sell
+```
+Rules: each coin's share × fraction of its 50/100/150/200-day averages it is above × risk sizing
+(60% / its 60-day volatility, max 1.5×); altcoins only while BTC is above its 100-day average; the rest in cash.
+Paper-trade at least 4–8 weeks before using real money. Not financial advice.
