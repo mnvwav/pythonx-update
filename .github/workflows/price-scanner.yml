@@ -1,0 +1,50 @@
+# Daily 30-minute Binance price-error (triangular arbitrage) scan; the summary is saved in the repo and emailed.
+name: Price-error scanner
+
+on:
+  schedule:
+    - cron: "30 13 * * *"    # 13:30 UTC = 7 pm India (busy US + India overlap)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repo-writes          # never push at the same moment as the paper-trading job
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: orderflow-edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Scan for 30 minutes
+        run: python scanner.py --minutes 30 --fee 0.001 --summary scanner_report.txt
+      - name: Email the result
+        if: always()
+        continue-on-error: true
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+        run: python notify.py --report scanner_report.txt "Binance price-error scan"
+      - name: Save the report
+        if: always()
+        run: |
+          git config user.name "paper-trading-bot"
+          git config user.email "paper-trading-bot@users.noreply.github.com"
+          mkdir -p scans
+          [ -f scanner_report.txt ] && cp scanner_report.txt "scans/$(date -u +%Y-%m-%d).txt"
+          git add scanner_report.txt scans 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "Price-error scan $(date -u +%Y-%m-%d)"
+          git pull --rebase -q && git push

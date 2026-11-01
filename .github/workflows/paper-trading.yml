@@ -11,7 +11,7 @@ permissions:
   contents: write             # to commit paper_log.csv and paper_daily.txt
 
 concurrency:
-  group: paper-trading
+  group: repo-writes
   cancel-in-progress: false
 
 jobs:
@@ -48,4 +48,4 @@ jobs:
           git config user.email "paper-trading-bot@users.noreply.github.com"
           git add paper_log.csv paper_daily.txt
           git diff --cached --quiet || git commit -m "Paper trading $(date -u +%Y-%m-%d)"
-          git push
+          git pull --rebase -q && git push

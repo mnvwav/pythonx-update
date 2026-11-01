@@ -31,8 +31,15 @@ def summary(block: str) -> tuple[str, str]:
 
 
 def main() -> None:
-    block = latest_block(Path(sys.argv[1] if len(sys.argv) > 1 else "paper_daily.txt"))
-    subject, short = summary(block)
+    if len(sys.argv) > 2 and sys.argv[1] == "--report":
+        # Any other report (e.g. the price-error scanner): send the file as is.
+        path = Path(sys.argv[2])
+        block = path.read_text() if path.exists() else f"{path} was not produced (see the GitHub Actions run)."
+        subject = sys.argv[3] if len(sys.argv) > 3 else path.stem
+        short = "\n".join(block.splitlines()[:12])
+    else:
+        block = latest_block(Path(sys.argv[1] if len(sys.argv) > 1 else "paper_daily.txt"))
+        subject, short = summary(block)
     env = os.environ.get
     sent = []
     if env("SMTP_USER") and env("SMTP_PASS") and env("EMAIL_TO"):

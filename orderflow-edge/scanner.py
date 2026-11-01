@@ -28,13 +28,30 @@ try:
 except ImportError:
     SSL = ssl.create_default_context()
 
-API = "https://api.binance.com/api/v3"
+# api.binance.com refuses some regions (e.g. US cloud servers such as GitHub Actions); data-api.binance.vision
+# serves the same public market data everywhere. The first one that answers is used.
+APIS = ["https://api.binance.com/api/v3", "https://data-api.binance.vision/api/v3"]
+API = None
 
 
 def get(path: str):
-    req = urllib.request.Request(API + path, headers={"User-Agent": "price-error-scanner/1.0"})
-    with urllib.request.urlopen(req, timeout=10, context=SSL) as r:
-        return json.loads(r.read())
+    global API
+    for base in ([API] if API else APIS):
+        try:
+            req = urllib.request.Request(base + path, headers={"User-Agent": "price-error-scanner/1.0"})
+            with urllib.request.urlopen(req, timeout=10, context=SSL) as r:
+                data = json.loads(r.read())
+            API = base
+            return data
+        except urllib.error.HTTPError as e:
+            if API:
+                raise
+            last = e
+        except Exception as e:
+            if API:
+                raise
+            last = e
+    raise last
 
 
 def markets() -> dict[str, tuple[str, str]]:
@@ -89,6 +106,7 @@ def main() -> None:
     ap.add_argument("--start", nargs="+", default=["USDT"], help="currencies to start/end loops in")
     ap.add_argument("--min-edge", type=float, default=0.0, help="log loops whose net gain exceeds this (0.001 = 0.1%)")
     ap.add_argument("--out", default="opportunities.csv")
+    ap.add_argument("--summary", default="", help="also write the final summary to this file")
     a = ap.parse_args()
 
     pairs = markets()
@@ -138,6 +156,17 @@ def main() -> None:
             time.sleep(max(0.0, 1.0 - (time.time() - t0)))   # once per second (Binance weight limits)
 
     finished += [(k, time.time() - v[0], v[1], v[2]) for k, v in live.items()]
+    report = []
+    say = lambda m="": (print(m), report.append(m))
+    try:
+        summarize(a, scans, errors, finished, best_gross, say)
+    finally:
+        if a.summary:
+            with open(a.summary, "w") as f:
+                f.write(f"Binance price-error scan, {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime())}, via {API}\n" + "\n".join(report) + "\n")
+
+
+def summarize(a, scans, errors, finished, best_gross, print):
     print(f"\n=== {scans} scans in {a.minutes:g} min ({errors} failed requests) ===")
     if not finished:
         print(f"No loop beat {a.fee*300:.2f}% of fees even once. Best loop: {(best_gross - 1) * 100:+.3f}% after fees.")
