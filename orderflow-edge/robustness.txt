@@ -1,0 +1,66 @@
+🔬 Combo strategy stress test · 2022-05-20 → 2026-10-31 · cost 0.15% per trade
+
+                                                   CAGR   worst DD  sharpe
+  Combo (as designed)                             24.5%     -26.8%    0.91
+  Buy & hold BTC (reference)                      23.4%     -53.0%    0.68
+
+1) SETTINGS SENSITIVITY — does it still work if the numbers change?
+                                                   CAGR   worst DD  sharpe
+  45 combinations: CAGR median 24.5%, worst 16.0%, best 28.8%; 100% profitable; sharpe median 0.94
+    without the BTC filter                        23.7%     -25.9%    0.86
+    without volatility sizing                     17.6%     -29.9%    0.66
+
+2) COST STRESS — fees per trade (plus TDS worst case)
+                                                   CAGR   worst DD  sharpe
+  fee+slippage 0.10%                              25.7%     -26.3%    0.94
+  fee+slippage 0.15%                              24.5%     -26.8%    0.91
+  fee+slippage 0.25%                              22.3%     -27.8%    0.84
+  fee+slippage 0.40%                              19.1%     -29.3%    0.75
+  fee+slippage 0.50%                              16.9%     -30.3%    0.69
+  0.15% + 1% TDS lost on every sell (worst case)    13.9%     -32.0%     0.6
+
+3) LATE EXECUTION — acting days after the signal
+                                                   CAGR   worst DD  sharpe
+  0 day(s) late                                   24.5%     -26.8%    0.91
+  1 day(s) late                                   26.0%     -29.5%    0.94
+  2 day(s) late                                   15.5%     -32.0%    0.64
+  3 day(s) late                                   17.1%     -31.9%    0.67
+
+4) COIN LUCK — does one coin carry it?
+                                                   CAGR   worst DD  sharpe
+  without BTC                                     21.9%     -26.2%     0.8
+  without ETH                                     24.5%     -25.9%    0.91
+  without SOL                                     24.0%     -27.0%    0.89
+  without BNB                                     23.1%     -28.2%    0.86
+  without XRP                                     23.7%     -28.3%    0.88
+  without DOGE                                    24.6%     -29.0%    0.91
+  without ADA                                     25.6%     -25.7%    0.94
+  without LINK                                    25.0%     -26.5%    0.92
+  without LTC                                     27.7%     -27.4%    0.99
+  without TRX                                     22.6%     -26.4%    0.84
+  50 random 5-coin portfolios (BTC + 4): CAGR median 25.0%, worst 17.6%, 100% profitable
+
+5) START-DATE LUCK — every 1-year window (starting each week)
+  181 windows · combo: 76% positive, median +36.5%, worst -19.4%, best +122.4%
+                 BTC hold: 70% positive, median +58.6%, worst -46.2%, best +239.0%
+
+6) MONTE CARLO — 1,000 reshuffled histories (30-day blocks of real days)
+  CAGR: 5th pct -0.1% · median 26.1% · 95th pct 69.9%
+  Worst drawdown: median -33.2% · 1-in-20 bad case -52.6%
+  Chance a given year loses money: 26% · loses more than 20%: 6%
+
+7) CHEATING CHECK — scramble which coin gets which day's return (signals should stop working)
+  real sharpe 0.91 vs scrambled: median 0.76, best 1.00
+  (scrambling keeps the market's overall ups and downs, so some edge from riding the whole market remains;
+   the gap between real and scrambled is what the coin-by-coin signals add)
+
+═══ VERDICT ═══
+  PASS  Settings         100% of 45 settings profitable
+  PASS  Costs            CAGR at 0.5% fees: 16.9%
+  PASS  Late execution   CAGR when 2 days late: 15.5%
+  PASS  Coin luck        worst leave-one-out CAGR 21.9%, 100% of random portfolios profitable
+  PASS  Start date       76% of 1-year windows positive, worst -19.4%
+  FAIL  Monte Carlo      5th-percentile CAGR -0.1%
+  FAIL  Cheating check   real 0.91 vs scrambled best 1.00
+
+  5/7 tests passed. Fragile: don't put real money in until the failures are understood.
