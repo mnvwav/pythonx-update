@@ -74,7 +74,10 @@ def main() -> None:
     ap.add_argument("--start", required=True, help="first day of the paper race, YYYY-MM-DD")
     ap.add_argument("--capital", type=float, default=8000)
     ap.add_argument("--years", type=int, default=5)
+    ap.add_argument("--backtest", action="store_true", help="instead of the race: full-history report for every contestant")
     a = ap.parse_args()
+    if a.backtest:
+        return backtest(a)
 
     data = {s: fetch_daily(s, a.years) for s in COINS}
     close, opens = panel(data, "close"), panel(data, "open")
@@ -100,6 +103,32 @@ def main() -> None:
         print(f"{i:<3}{label:<32}{a.capital * eq:>10,.0f}{(eq - 1) * 100:>+8.2f}%{today * 100:>+7.2f}%   "
               f"{bt.get('CAGR%', '–')}% / {bt.get('maxDD%', '–')}%")
     print("\nA few weeks of results are mostly luck; judge after 2–3 months. Paper only, not financial advice.")
+
+
+def backtest(a) -> None:
+    """Every contestant over the whole history, split into yearly results, after costs."""
+    data = {s: fetch_daily(s, a.years) for s in COINS}
+    close, opens = panel(data, "close"), panel(data, "open")
+    start = close.index[200]                        # after the 200-day averages warm up
+    cut = close.index[int(len(close) * 0.6)]
+    years = sorted({d.year for d in close.index[close.index >= start]})
+    print(f"📈 Backtest of all tournament strategies · {len(COINS)} coins · {start:%Y-%m-%d} → {close.index[-1]:%Y-%m-%d} · "
+          f"cost {COST*100:.2f}% per trade · ₹{a.capital:,.0f} start\n")
+    print(f"{'strategy':<32}{'final ₹':>11}{'CAGR':>8}{'worst drop':>12}{'sharpe':>8}   recent 40%: CAGR / drop")
+    yearly = {}
+    for key, label in CONTESTANTS.items():
+        r = run(opens, contestant(close, key), COST)
+        full, rec = stats(r[r.index >= start]), stats(r[r.index >= cut])
+        eq = float((1 + r[r.index >= start]).prod())
+        print(f"{label:<32}{a.capital * eq:>11,.0f}{full['CAGR%']:>7}%{full['maxDD%']:>11}%{full['sharpe']:>8}   "
+              f"{rec['CAGR%']}% / {rec['maxDD%']}%")
+        yearly[label] = {y: (float((1 + r[(r.index >= start) & (r.index.year == y)]).prod()) - 1) * 100 for y in years}
+    print("\nYear by year (%):")
+    print(f"{'strategy':<32}" + "".join(f"{y:>9}" for y in years))
+    for label, ys in yearly.items():
+        print(f"{label:<32}" + "".join(f"{ys[y]:>+8.1f}%" for y in years))
+    print("\nLook for: positive in most years and a worst drop you could live through. "
+          "The first and last years are partial. Past results don't guarantee future ones.")
 
 
 if __name__ == "__main__":
