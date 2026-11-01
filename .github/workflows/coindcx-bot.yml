@@ -1,0 +1,54 @@
+# Daily automated CoinDCX trading of the combo strategy.
+# PRETEND MODE unless the repository variable LIVE_TRADING is set to "yes" (Settings → Variables → Actions).
+# To switch the bot off completely: Actions → CoinDCX bot → "…" → Disable workflow.
+name: CoinDCX bot
+
+on:
+  schedule:
+    - cron: "45 1 * * *"     # 01:45 UTC = 7:15 am India, after the daily close and the paper run
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coindcx-bot
+  cancel-in-progress: false
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: orderflow-edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Trade (or pretend)
+        env:
+          COINDCX_KEY: ${{ secrets.COINDCX_KEY }}
+          COINDCX_SECRET: ${{ secrets.COINDCX_SECRET }}
+          LIVE_TRADING: ${{ vars.LIVE_TRADING }}
+          BOT_CAPITAL: ${{ vars.BOT_CAPITAL }}
+          BOT_MAX_DD: ${{ vars.BOT_MAX_DD }}
+        run: python coindcx_bot.py 2>&1 | grep -v 'days,'
+      - name: Email what it did
+        if: always()
+        continue-on-error: true
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python notify.py --report bot_log.txt "CoinDCX bot"
+      - name: Save the state
+        if: always()
+        run: |
+          git config user.name "paper-trading-bot"
+          git config user.email "paper-trading-bot@users.noreply.github.com"
+          git add bot_state.json bot_log.txt 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "CoinDCX bot $(date -u +%Y-%m-%d)"
+          git pull --rebase -q && git push
