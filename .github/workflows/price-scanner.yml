@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: repo-writes          # never push at the same moment as the paper-trading job
+  group: price-scanner
   cancel-in-progress: false
 
 jobs:

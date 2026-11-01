@@ -11,7 +11,7 @@ permissions:
   contents: write             # to commit paper_log.csv and paper_daily.txt
 
 concurrency:
-  group: repo-writes
+  group: paper-trading
   cancel-in-progress: false
 
 jobs:
