@@ -13,3 +13,7 @@ local.properties
 *.jks
 *.keystore
 *.pepk
+
+# Python
+__pycache__/
+*.pyc
