@@ -32,6 +32,16 @@ jobs:
             echo "===== $(date -u '+%Y-%m-%d %H:%M UTC') ====="
             python signals.py 8000 --paper --min-change 0.05
           } 2>&1 | tee -a paper_daily.txt
+      - name: Strategy tournament (all strategies, paper)
+        continue-on-error: true
+        run: python tournament.py --start 2026-11-01 --capital 8000 | tee tournament.txt
+      - name: Email the tournament leaderboard
+        continue-on-error: true
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python notify.py --report tournament.txt "Strategy tournament leaderboard"
       - name: Notify (email / WhatsApp, if configured)
         if: always()
         continue-on-error: true      # a notification problem must never stop the log from being saved
@@ -46,6 +56,6 @@ jobs:
         run: |
           git config user.name "paper-trading-bot"
           git config user.email "paper-trading-bot@users.noreply.github.com"
-          git add paper_log.csv paper_daily.txt
+          git add paper_log.csv paper_daily.txt tournament.txt
           git diff --cached --quiet || git commit -m "Paper trading $(date -u +%Y-%m-%d)"
           git pull --rebase -q && git push
