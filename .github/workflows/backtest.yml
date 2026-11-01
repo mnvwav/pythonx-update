@@ -33,7 +33,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: python notify.py --report backtest_all.txt "Backtest: all strategies, 5 years"
+        run: python notify.py --report backtest_all.txt "Backtest - all strategies, 5 years"
       - name: Save
         run: |
           git config user.name "paper-trading-bot"
