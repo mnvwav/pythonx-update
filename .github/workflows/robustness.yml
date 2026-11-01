@@ -1,0 +1,43 @@
+# On demand: stress-test the combo strategy on real prices; save and email the report.
+name: Stress test
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: robustness
+  cancel-in-progress: false
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: orderflow-edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Stress test
+        run: python robust.py --years 5 | grep -v 'days,' | tee robustness.txt
+      - name: Email the report
+        if: always()
+        continue-on-error: true
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python notify.py --report robustness.txt "Stress test - combo strategy"
+      - name: Save
+        run: |
+          git config user.name "paper-trading-bot"
+          git config user.email "paper-trading-bot@users.noreply.github.com"
+          git add robustness.txt
+          git diff --cached --quiet || git commit -m "Stress test $(date -u +%Y-%m-%d)"
+          git pull --rebase -q && git push
