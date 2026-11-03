@@ -1,0 +1,11 @@
+Binance price-error scan, 2026-11-03 20:43 UTC, via https://data-api.binance.vision/api/v3
+
+=== 1482 scans in 30 min (0 failed requests) ===
+3 opportunities; 3 with at least 10 USDT of depth at the quoted prices.
+Median length 3.3 s; median edge 0.013%
+Top 10 by edge × size:
+  USDT→ETH→THB→USDT              +0.033%  up to 1,102 USDT  lasted 3s  → ~0.37 profit
+  USDT→ETH→THB→USDT              +0.013%  up to 1,102 USDT  lasted 6s  → ~0.14 profit
+  USDT→ETH→THB→USDT              +0.006%  up to 1,102 USDT  lasted 2s  → ~0.07 profit
+
+Reality check: you'd need to place 3 orders in well under a second, and pros see the same gaps first. Gaps lasting under 2 s are effectively unreachable from India.
