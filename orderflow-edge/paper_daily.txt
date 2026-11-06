@@ -237,3 +237,33 @@ CASH         42.9%       3,431
 
 P&L today: -0 INR · total: -53 INR (-0.66%) · value 7,947
 Paper trading: 6 days logged since 2026-10-30, value 7,947 (-0.66%)
+===== 2026-11-06 07:57 UTC =====
+BTCUSDT: 735 days, 2024-11-01 → 2026-11-05
+ETHUSDT: 735 days, 2024-11-01 → 2026-11-05
+SOLUSDT: 735 days, 2024-11-01 → 2026-11-05
+BNBUSDT: 735 days, 2024-11-01 → 2026-11-05
+XRPUSDT: 735 days, 2024-11-01 → 2026-11-05
+DOGEUSDT: 735 days, 2024-11-01 → 2026-11-05
+ADAUSDT: 735 days, 2024-11-01 → 2026-11-05
+LINKUSDT: 735 days, 2024-11-01 → 2026-11-05
+LTCUSDT: 735 days, 2024-11-01 → 2026-11-05
+TRXUSDT: 735 days, 2024-11-01 → 2026-11-05
+
+Combo strategy · signals from the 2026-11-05 daily close · capital 8,000
+BTC trend filter: OFF — altcoins go to cash
+
+coin        target      amount   action
+BTC           7.5%         600   —
+ETH           0.0%           0   SELL 861
+SOL           0.0%           0   SELL 441
+BNB           0.0%           0   SELL 900
+XRP           0.0%           0   SELL 421
+DOGE          0.0%           0   —
+ADA           0.0%           0   SELL all (173)
+LINK          0.0%           0   SELL all (318)
+LTC           0.0%           0   SELL 554
+TRX           0.0%           0   —
+CASH         92.5%       7,400
+
+P&L today: -1 INR · total: +86 INR (+1.07%) · value 8,086
+Paper trading: 7 days logged since 2026-10-30, value 8,086 (+1.07%)
