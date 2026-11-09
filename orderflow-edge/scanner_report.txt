@@ -1,5 +1,9 @@
-Binance price-error scan, 2026-11-08 18:56 UTC, via https://data-api.binance.vision/api/v3
+Binance price-error scan, 2026-11-09 23:36 UTC, via https://data-api.binance.vision/api/v3
 
-=== 1795 scans in 30 min (0 failed requests) ===
-No loop beat 0.30% of fees even once. Best loop: -0.100% after fees.
-Verdict: no price errors a retail bot could catch at this fee level.
+=== 1325 scans in 30 min (0 failed requests) ===
+1 opportunities; 1 with at least 10 USDT of depth at the quoted prices.
+Median length 2.7 s; median edge 0.042%
+Top 10 by edge × size:
+  USDT→USD1→WLFI→USDT            +0.042%  up to 732 USDT  lasted 3s  → ~0.30 profit
+
+Reality check: you'd need to place 3 orders in well under a second, and pros see the same gaps first. Gaps lasting under 2 s are effectively unreachable from India.
