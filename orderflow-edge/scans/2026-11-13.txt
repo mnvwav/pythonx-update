@@ -1,0 +1,18 @@
+Binance price-error scan, 2026-11-13 21:06 UTC, via https://data-api.binance.vision/api/v3
+
+=== 1656 scans in 30 min (0 failed requests) ===
+16 opportunities; 16 with at least 10 USDT of depth at the quoted prices.
+Median length 38.2 s; median edge 0.094%
+Top 10 by edge × size:
+  USDT→XRP→THB→USDT              +0.821%  up to 1,468 USDT  lasted 621s  → ~12.06 profit
+  USDT→SHELL→TRY→USDT            +0.183%  up to 147 USDT  lasted 2s  → ~0.27 profit
+  USDT→XRP→THB→USDT              +0.123%  up to 71 USDT  lasted 184s  → ~0.09 profit
+  USDT→SHELL→TRY→USDT            +0.169%  up to 50 USDT  lasted 2s  → ~0.09 profit
+  USDT→XRP→THB→USDT              +0.114%  up to 71 USDT  lasted 51s  → ~0.08 profit
+  USDT→XRP→THB→USDT              +0.104%  up to 71 USDT  lasted 194s  → ~0.07 profit
+  USDT→XRP→THB→USDT              +0.094%  up to 71 USDT  lasted 39s  → ~0.07 profit
+  USDT→XRP→THB→USDT              +0.094%  up to 71 USDT  lasted 136s  → ~0.07 profit
+  USDT→XRP→THB→USDT              +0.055%  up to 71 USDT  lasted 55s  → ~0.04 profit
+  USDT→XRP→THB→USDT              +0.045%  up to 71 USDT  lasted 38s  → ~0.03 profit
+
+Reality check: you'd need to place 3 orders in well under a second, and pros see the same gaps first. Gaps lasting under 2 s are effectively unreachable from India.
