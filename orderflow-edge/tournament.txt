@@ -1,22 +1,22 @@
-BTCUSDT: 1838 days, 2021-11-01 → 2026-11-12
-ETHUSDT: 1838 days, 2021-11-01 → 2026-11-12
-SOLUSDT: 1838 days, 2021-11-01 → 2026-11-12
-BNBUSDT: 1838 days, 2021-11-01 → 2026-11-12
-XRPUSDT: 1838 days, 2021-11-01 → 2026-11-12
-DOGEUSDT: 1838 days, 2021-11-01 → 2026-11-12
-ADAUSDT: 1838 days, 2021-11-01 → 2026-11-12
-LINKUSDT: 1838 days, 2021-11-01 → 2026-11-12
-LTCUSDT: 1838 days, 2021-11-01 → 2026-11-12
-TRXUSDT: 1838 days, 2021-11-01 → 2026-11-12
-🏁 Strategy tournament · paper ₹8,000 each · day 11 (since 2026-11-01) · data to 2026-11-12
+BTCUSDT: 1839 days, 2021-11-01 → 2026-11-13
+ETHUSDT: 1839 days, 2021-11-01 → 2026-11-13
+SOLUSDT: 1839 days, 2021-11-01 → 2026-11-13
+BNBUSDT: 1839 days, 2021-11-01 → 2026-11-13
+XRPUSDT: 1839 days, 2021-11-01 → 2026-11-13
+DOGEUSDT: 1839 days, 2021-11-01 → 2026-11-13
+ADAUSDT: 1839 days, 2021-11-01 → 2026-11-13
+LINKUSDT: 1839 days, 2021-11-01 → 2026-11-13
+LTCUSDT: 1839 days, 2021-11-01 → 2026-11-13
+TRXUSDT: 1839 days, 2021-11-01 → 2026-11-13
+🏁 Strategy tournament · paper ₹8,000 each · day 12 (since 2026-11-01) · data to 2026-11-13
 
 #  strategy                             value    total   today   backtest: CAGR / worst drop
 1  RSI-2 dip buyer (BTC/ETH)            8,173   +2.17%  +0.00%   7.0% / -15.9%
 2  Top-3 rotation                       7,800   -2.49%  +0.00%   22.7% / -50.6%
-3  Combo trend (tested winner)          7,766   -2.93%  +0.02%   24.6% / -26.8%
-4  Volatility-sized trend               7,696   -3.80%  -0.01%   23.7% / -25.9%
-5  Buy & hold BTC                       7,632   -4.60%  +0.30%   23.5% / -53.0%
-6  Top-1 moonshot (aggressive)          7,527   -5.91%  +0.00%   11.2% / -71.2%
-7  Equal-weight hold (10 coins)         7,321   -8.49%  -0.30%   20.9% / -62.9%
+3  Combo trend (tested winner)          7,745   -3.18%  -0.26%   24.6% / -26.8%
+4  Volatility-sized trend               7,656   -4.30%  -0.52%   23.7% / -25.9%
+5  Top-1 moonshot (aggressive)          7,527   -5.91%  +0.00%   11.2% / -71.2%
+6  Buy & hold BTC                       7,369   -7.89%  -3.45%   23.5% / -53.0%
+7  Equal-weight hold (10 coins)         7,217   -9.79%  -1.41%   20.9% / -62.9%
 
 A few weeks of results are mostly luck; judge after 2–3 months. Paper only, not financial advice.
