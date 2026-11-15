@@ -1,5 +1,18 @@
-Binance price-error scan, 2026-11-14 19:18 UTC, via https://data-api.binance.vision/api/v3
+Binance price-error scan, 2026-11-15 19:56 UTC, via https://data-api.binance.vision/api/v3
 
-=== 1619 scans in 30 min (0 failed requests) ===
-No loop beat 0.30% of fees even once. Best loop: -0.043% after fees.
-Verdict: no price errors a retail bot could catch at this fee level.
+=== 1797 scans in 30 min (0 failed requests) ===
+11 opportunities; 11 with at least 10 USDT of depth at the quoted prices.
+Median length 1.9 s; median edge 0.155%
+Top 10 by edge × size:
+  USDT→JUV→TRY→USDT              +0.281%  up to 532 USDT  lasted 2s  → ~1.49 profit
+  USDT→JUV→TRY→USDT              +0.186%  up to 779 USDT  lasted 2s  → ~1.45 profit
+  USDT→RARE→TRY→USDT             +0.938%  up to 113 USDT  lasted 2s  → ~1.06 profit
+  USDT→JUV→TRY→USDT              +0.365%  up to 193 USDT  lasted 2s  → ~0.71 profit
+  USDT→TRY→JUV→USDT              +0.155%  up to 368 USDT  lasted 2s  → ~0.57 profit
+  USDT→RARE→TRY→USDT             +0.437%  up to 84 USDT  lasted 2s  → ~0.37 profit
+  USDT→TRY→RARE→USDT             +0.019%  up to 1,335 USDT  lasted 2s  → ~0.25 profit
+  USDT→RARE→TRY→USDT             +0.122%  up to 201 USDT  lasted 2s  → ~0.25 profit
+  USDT→JUV→TRY→USDT              +0.013%  up to 282 USDT  lasted 2s  → ~0.04 profit
+  USDT→USDC→RARE→USDT            +0.036%  up to 36 USDT  lasted 2s  → ~0.01 profit
+
+Reality check: you'd need to place 3 orders in well under a second, and pros see the same gaps first. Gaps lasting under 2 s are effectively unreachable from India.
