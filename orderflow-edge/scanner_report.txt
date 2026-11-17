@@ -1,5 +1,17 @@
-Binance price-error scan, 2026-11-16 23:28 UTC, via https://data-api.binance.vision/api/v3
+Binance price-error scan, 2026-11-17 22:21 UTC, via https://data-api.binance.vision/api/v3
 
-=== 1691 scans in 30 min (0 failed requests) ===
-No loop beat 0.30% of fees even once. Best loop: -0.193% after fees.
-Verdict: no price errors a retail bot could catch at this fee level.
+=== 1798 scans in 30 min (0 failed requests) ===
+9 opportunities; 9 with at least 10 USDT of depth at the quoted prices.
+Median length 8.9 s; median edge 0.015%
+Top 10 by edge × size:
+  USDT→USUAL→TRY→USDT            +0.271%  up to 336 USDT  lasted 2s  → ~0.91 profit
+  USDT→XRP→THB→USDT              +0.221%  up to 30 USDT  lasted 210s  → ~0.07 profit
+  USDT→XRP→THB→USDT              +0.097%  up to 30 USDT  lasted 205s  → ~0.03 profit
+  USDT→XRP→THB→USDT              +0.077%  up to 30 USDT  lasted 34s  → ~0.02 profit
+  USDT→XRP→THB→USDT              +0.015%  up to 30 USDT  lasted 14s  → ~0.00 profit
+  USDT→XRP→THB→USDT              +0.015%  up to 30 USDT  lasted 9s  → ~0.00 profit
+  USDT→XRP→THB→USDT              +0.004%  up to 30 USDT  lasted 8s  → ~0.00 profit
+  USDT→XRP→THB→USDT              +0.004%  up to 30 USDT  lasted 8s  → ~0.00 profit
+  USDT→XRP→THB→USDT              +0.004%  up to 30 USDT  lasted 7s  → ~0.00 profit
+
+Reality check: you'd need to place 3 orders in well under a second, and pros see the same gaps first. Gaps lasting under 2 s are effectively unreachable from India.
