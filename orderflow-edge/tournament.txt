@@ -1,22 +1,22 @@
-BTCUSDT: 1841 days, 2021-11-01 → 2026-11-15
-ETHUSDT: 1841 days, 2021-11-01 → 2026-11-15
-SOLUSDT: 1841 days, 2021-11-01 → 2026-11-15
-BNBUSDT: 1841 days, 2021-11-01 → 2026-11-15
-XRPUSDT: 1841 days, 2021-11-01 → 2026-11-15
-DOGEUSDT: 1841 days, 2021-11-01 → 2026-11-15
-ADAUSDT: 1841 days, 2021-11-01 → 2026-11-15
-LINKUSDT: 1841 days, 2021-11-01 → 2026-11-15
-LTCUSDT: 1841 days, 2021-11-01 → 2026-11-15
-TRXUSDT: 1841 days, 2021-11-01 → 2026-11-15
-🏁 Strategy tournament · paper ₹8,000 each · day 14 (since 2026-11-01) · data to 2026-11-15
+BTCUSDT: 1842 days, 2021-11-01 → 2026-11-16
+ETHUSDT: 1842 days, 2021-11-01 → 2026-11-16
+SOLUSDT: 1842 days, 2021-11-01 → 2026-11-16
+BNBUSDT: 1842 days, 2021-11-01 → 2026-11-16
+XRPUSDT: 1842 days, 2021-11-01 → 2026-11-16
+DOGEUSDT: 1842 days, 2021-11-01 → 2026-11-16
+ADAUSDT: 1842 days, 2021-11-01 → 2026-11-16
+LINKUSDT: 1842 days, 2021-11-01 → 2026-11-16
+LTCUSDT: 1842 days, 2021-11-01 → 2026-11-16
+TRXUSDT: 1842 days, 2021-11-01 → 2026-11-16
+🏁 Strategy tournament · paper ₹8,000 each · day 15 (since 2026-11-01) · data to 2026-11-16
 
 #  strategy                             value    total   today   backtest: CAGR / worst drop
 1  RSI-2 dip buyer (BTC/ETH)            8,173   +2.17%  +0.00%   7.0% / -15.9%
 2  Top-3 rotation                       7,800   -2.49%  +0.00%   22.7% / -50.6%
 3  Combo trend (tested winner)          7,745   -3.19%  +0.00%   24.6% / -26.8%
-4  Volatility-sized trend               7,650   -4.38%  -0.00%   23.7% / -25.9%
+4  Volatility-sized trend               7,650   -4.38%  +0.00%   23.7% / -25.9%
 5  Top-1 moonshot (aggressive)          7,527   -5.91%  +0.00%   11.2% / -71.2%
-6  Buy & hold BTC                       6,615  -17.31%  -6.10%   23.5% / -53.0%
-7  Equal-weight hold (10 coins)         6,383  -20.22%  -8.66%   20.9% / -62.9%
+6  Buy & hold BTC                       6,739  -15.77%  +1.87%   23.5% / -53.0%
+7  Equal-weight hold (10 coins)         6,602  -17.48%  +3.43%   20.9% / -62.9%
 
 A few weeks of results are mostly luck; judge after 2–3 months. Paper only, not financial advice.
