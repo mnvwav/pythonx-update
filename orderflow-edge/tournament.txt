@@ -1,14 +1,14 @@
-BTCUSDT: 1843 days, 2021-11-01 → 2026-11-17
-ETHUSDT: 1843 days, 2021-11-01 → 2026-11-17
-SOLUSDT: 1843 days, 2021-11-01 → 2026-11-17
-BNBUSDT: 1843 days, 2021-11-01 → 2026-11-17
-XRPUSDT: 1843 days, 2021-11-01 → 2026-11-17
-DOGEUSDT: 1843 days, 2021-11-01 → 2026-11-17
-ADAUSDT: 1843 days, 2021-11-01 → 2026-11-17
-LINKUSDT: 1843 days, 2021-11-01 → 2026-11-17
-LTCUSDT: 1843 days, 2021-11-01 → 2026-11-17
-TRXUSDT: 1843 days, 2021-11-01 → 2026-11-17
-🏁 Strategy tournament · paper ₹8,000 each · day 16 (since 2026-11-01) · data to 2026-11-17
+BTCUSDT: 1844 days, 2021-11-01 → 2026-11-18
+ETHUSDT: 1844 days, 2021-11-01 → 2026-11-18
+SOLUSDT: 1844 days, 2021-11-01 → 2026-11-18
+BNBUSDT: 1844 days, 2021-11-01 → 2026-11-18
+XRPUSDT: 1844 days, 2021-11-01 → 2026-11-18
+DOGEUSDT: 1844 days, 2021-11-01 → 2026-11-18
+ADAUSDT: 1844 days, 2021-11-01 → 2026-11-18
+LINKUSDT: 1844 days, 2021-11-01 → 2026-11-18
+LTCUSDT: 1844 days, 2021-11-01 → 2026-11-18
+TRXUSDT: 1844 days, 2021-11-01 → 2026-11-18
+🏁 Strategy tournament · paper ₹8,000 each · day 17 (since 2026-11-01) · data to 2026-11-18
 
 #  strategy                             value    total   today   backtest: CAGR / worst drop
 1  RSI-2 dip buyer (BTC/ETH)            8,173   +2.17%  +0.00%   7.0% / -15.9%
@@ -16,7 +16,7 @@ TRXUSDT: 1843 days, 2021-11-01 → 2026-11-17
 3  Combo trend (tested winner)          7,745   -3.19%  +0.00%   24.6% / -26.8%
 4  Volatility-sized trend               7,650   -4.38%  +0.00%   23.7% / -25.9%
 5  Top-1 moonshot (aggressive)          7,527   -5.91%  +0.00%   11.2% / -71.2%
-6  Buy & hold BTC                       6,691  -16.37%  -0.72%   23.5% / -53.0%
-7  Equal-weight hold (10 coins)         6,515  -18.56%  -1.31%   20.9% / -62.9%
+6  Buy & hold BTC                       6,697  -16.29%  +0.10%   23.5% / -53.0%
+7  Equal-weight hold (10 coins)         6,631  -17.11%  +1.78%   20.9% / -62.9%
 
 A few weeks of results are mostly luck; judge after 2–3 months. Paper only, not financial advice.
