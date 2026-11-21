@@ -1,0 +1,5 @@
+Binance price-error scan, 2026-11-21 20:42 UTC, via https://data-api.binance.vision/api/v3
+
+=== 1798 scans in 30 min (0 failed requests) ===
+No loop beat 0.30% of fees even once. Best loop: -0.079% after fees.
+Verdict: no price errors a retail bot could catch at this fee level.
